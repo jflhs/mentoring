@@ -111,6 +111,27 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
     <div id="feedbackSendMsg" style="font-size:12px;text-align:center;margin-top:8px;display:none"></div>
   </div>
 </div>
+
+<!-- 공지사항 작성 모달 -->
+<div id="noticeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#1e293b">📌 공지사항 작성</div>
+      <button onclick="closeNoticeModal()" style="font-size:20px;background:none;border:none;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">작성한 공지사항은 전체 모든 팀 학생 대시보드 상단에 즉시 표시됩니다.</div>
+    <input id="noticeTeacherInp" placeholder="선생님 이름 (예: 홍길동 선생님)" maxlength="20"
+      style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit;margin-bottom:8px;color:#1e293b">
+    <textarea id="noticeTextarea" rows="7"
+      placeholder="공지사항 내용을 입력하세요.&#10;&#10;예)&#10;🌟 전남외고 Academic Growth 멘토-멘티 프로그램에 오신 것을 환영합니다!&#10;✅ 매주 팀 목표와 개인 목표를 설정하고 달성해보세요.&#10;🏆 성취 리워드 조건: 팀 평균 달성률 80% + 목표 과목 0.5등급 향상"
+      style="width:100%;font-size:13px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;outline:none;resize:none;font-family:inherit;color:#1e293b;line-height:1.7"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="closeNoticeModal()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-size:13px">취소</button>
+      <button onclick="submitNotice()" style="flex:2;padding:10px;border:none;border-radius:10px;background:#1e3a6b;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">📌 공지사항 게시</button>
+    </div>
+    <div id="noticeSendMsg" style="font-size:12px;text-align:center;margin-top:8px;display:none"></div>
+  </div>
+</div>
 <div class="wrap">
 
 <div class="top">
@@ -121,6 +142,8 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
   <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
     <div class="week-tabs" id="weekTabs"></div>
     <button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
+    <button class="refresh-btn" onclick="openNoticeModal()"
+      style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8">📌 공지사항</button>
     <button class="refresh-btn" id="gradeBtn" onclick="toggleGradeMode()" style="background:#fef9c3;border-color:#fcd34d;color:#92400e">🔒 등급 보기</button>
   </div>
 </div>
@@ -221,6 +244,57 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 
 <script>
 
+
+
+// ── 공지사항 ──
+async function openNoticeModal(){
+  // 현재 공지사항 불러오기
+  try{
+    const res=await fetch(`${SHEETS_URL}?type=notice&t=${Date.now()}`);
+    const json=await res.json();
+    if(json.result==='success'&&json.data){
+      document.getElementById('noticeTextarea').value=json.data.content||'';
+      document.getElementById('noticeTeacherInp').value=json.data.teacherName||'';
+    }
+  }catch(e){}
+  document.getElementById('noticeModal').style.display='flex';
+  setTimeout(()=>document.getElementById('noticeTextarea').focus(),100);
+}
+
+function closeNoticeModal(){
+  document.getElementById('noticeModal').style.display='none';
+  document.getElementById('noticeSendMsg').style.display='none';
+}
+
+async function submitNotice(){
+  const content=document.getElementById('noticeTextarea').value.trim();
+  const teacherName=document.getElementById('noticeTeacherInp').value.trim()||'선생님';
+  if(!content){
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#dc2626';
+    document.getElementById('noticeSendMsg').textContent='공지사항 내용을 입력해주세요.';
+    return;
+  }
+  const btn=document.querySelector('#noticeModal button:last-of-type');
+  btn.textContent='게시 중...';btn.disabled=true;
+  try{
+    await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({
+      type:'notice',
+      content,
+      teacherName,
+    })});
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#059669';
+    document.getElementById('noticeSendMsg').textContent='✅ 공지사항이 게시됐어요! 전체 학생 대시보드에 표시됩니다.';
+    btn.textContent='📌 공지사항 게시';btn.disabled=false;
+    setTimeout(()=>closeNoticeModal(),2000);
+  }catch(e){
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#dc2626';
+    document.getElementById('noticeSendMsg').textContent='게시 실패. 다시 시도해주세요.';
+    btn.textContent='📌 공지사항 게시';btn.disabled=false;
+  }
+}
 
 // ── 피드백 ──
 let feedbackTargetTeam = null;
@@ -335,7 +409,7 @@ function checkPw(){
   }
 }
 
-const SHEETS_URL='https://script.google.com/macros/s/AKfycbx7gNWs0w8WKiekAM9vuypBctySsQsVotZg1fMd15WRbSc9cmj4Br7EDmNB2PCg4FILhw/exec';
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbw5cREBxq5vEy9QOYwtjlBBOiDVSJs76Tc1IP3VXXnzUvE66sc1VJTT8m2c7i19QShw/exec';
 const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
 const TEAM_MAP={
   'TEAM01':'1모둠','TEAM02':'2모둠','TEAM03':'3모둠','TEAM04':'4모둠',
@@ -343,6 +417,7 @@ const TEAM_MAP={
   'TEAM09':'9모둠','TEAM10':'10모둠','TEAM11':'11모둠','TEAM12':'12모둠',
   'TEAM13':'13모둠','TEAM14':'14모둠','TEAM15':'15모둠','TEAM16':'16모둠',
   'TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
+
 };
 
 let currentWeek=1;
@@ -494,7 +569,19 @@ function getPersonData(teamCode, memberName){
         rate:parseFloat(r['달성률'])||0,
         cumRate:parseFloat(r['누적달성률'])||0,
         saveTs:r['저장시각']||'',
-        goals:[r['목표1'],r['목표2'],r['목표3'],r['목표4'],r['목표5'],r['목표6'],r['목표7'],r['목표8']].filter(Boolean),
+        goals:(()=>{
+          const gs=[];
+          for(let i=1;i<=8;i++){
+            if(r[`목표${i}`]) gs.push({
+              text:r[`목표${i}`]||'',
+              checked:r[`목표${i}체크`]==='true',
+              checkTs:r[`목표${i}시각`]||'',
+              fileUrl:r[`목표${i}파일URL`]||'',
+              fileName:r[`목표${i}파일명`]||'',
+            });
+          }
+          return gs;
+        })(),
         subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
         subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
         subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
@@ -539,7 +626,30 @@ function showPersonDetail(team, memberName, memberIdx){
   goalsEl.innerHTML='';
   if(!thisWeek||!thisWeek.goals.length) goalsEl.innerHTML=`<div class="no-data-msg">이번 주 목표 없음</div>`;
   else thisWeek.goals.forEach((g,i)=>{
-    goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#94a3b8;font-size:11px;min-width:16px">${i+1}</span><span>${g}</span></div>`;
+    const goalText = typeof g === 'object' ? g.text : g;
+    const goalChecked = typeof g === 'object' ? g.checked : false;
+    const goalTs = typeof g === 'object' ? g.checkTs : '';
+    const goalFileUrl = typeof g === 'object' ? g.fileUrl : '';
+    const goalFileName = typeof g === 'object' ? g.fileName : '';
+    const checkIcon = goalChecked
+      ? `<span style="color:#059669;font-size:13px;flex-shrink:0">✅</span>`
+      : `<span style="color:#cbd5e1;font-size:13px;flex-shrink:0">○</span>`;
+    const imgHtml = goalFileUrl
+      ? `<div style="margin-top:5px;padding-left:20px">
+          <img src="${goalFileUrl}" alt="증빙자료"
+            style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer"
+            onclick="window.open('${goalFileUrl}','_blank')"
+            title="클릭하면 크게 볼 수 있어요">
+        </div>`
+      : (goalFileName ? `<div style="margin-top:3px;padding-left:20px;font-size:11px;color:#94a3b8">📎 ${goalFileName}</div>` : '');
+    goalsEl.innerHTML+=`<div class="goal-item" style="flex-direction:column;align-items:flex-start;gap:3px">
+      <div style="display:flex;align-items:center;gap:6px">
+        ${checkIcon}
+        <span style="color:${goalChecked?'#1e293b':'#64748b'};font-size:13px">${goalText}</span>
+        ${goalTs?`<span style="font-size:10px;color:#94a3b8">${goalTs}</span>`:''}
+      </div>
+      ${imgHtml}
+    </div>`;
   });
 
   const subjEl=document.getElementById('personSubjects');
@@ -636,7 +746,9 @@ function showDetail(team){
   else{
     const tgoals=[wd.teamGoal1,wd.teamGoal2,wd.teamGoal3,wd.teamGoal4,wd.teamGoal5].filter(Boolean);
     if(!tgoals.length) goalsEl.innerHTML=`<div class="no-data-msg">팀 목표 없음</div>`;
-    else tgoals.forEach(g=>{goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#2563eb">•</span><span>${g}</span></div>`;});
+    else tgoals.forEach(g=>{
+      goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#2563eb">•</span><span>${g}</span></div>`;
+    });
   }
 
   const subjEl=document.getElementById('detailSubjects');

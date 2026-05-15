@@ -52,7 +52,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 .member-grid{display:grid;grid-template-columns:repeat(2,1fr);gap:10px}
 @media(min-width:480px){.member-grid{grid-template-columns:repeat(3,1fr)}}
 @media(min-width:768px){.member-grid{grid-template-columns:repeat(5,1fr)}}
-.member-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px 10px;text-align:center}
+.member-card{background:#f8fafc;border:1px solid #e2e8f0;border-radius:14px;padding:14px 10px;text-align:center;width:100%}
 .member-card.me{border-color:#2563eb;border-width:2px;background:#eff6ff}
 .avatar{width:40px;height:40px;border-radius:50%;font-size:15px;font-weight:700;display:flex;align-items:center;justify-content:center;margin:0 auto 6px}
 .member-name{font-size:12px;font-weight:700;color:#1e293b;margin-bottom:3px;word-break:keep-all}
@@ -184,10 +184,26 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
     <div class="metric"><div class="lbl">🎯 성취 리워드까지</div><div class="val" id="incentiveLeft">—</div></div>
   </div>
 
+  <!-- 공지사항 -->
+  <div id="noticeBanner" style="background:#eff6ff;border:1px solid #bfdbfe;border-radius:12px;padding:14px 16px;margin-bottom:12px">
+    <div style="display:flex;align-items:flex-start;gap:10px">
+      <span style="font-size:20px;flex-shrink:0">📌</span>
+      <div style="flex:1;min-width:0">
+        <div style="font-size:13px;font-weight:700;color:#1e40af;margin-bottom:6px">공지사항</div>
+        <div style="font-size:13px;color:#1e293b;line-height:1.7" id="noticeContent">
+          🌟 전남외고 Academic Growth 멘토-멘티 프로그램에 오신 것을 환영합니다!<br>
+          ✅ 매주 팀 목표와 개인 목표를 설정하고 달성해보세요.<br>
+          🏆 성취 리워드 조건: 팀 평균 달성률 80% + 목표 과목 0.5등급 향상
+        </div>
+        <div style="font-size:11px;color:#94a3b8;margin-top:6px" id="noticeTimestamp"></div>
+      </div>
+    </div>
+  </div>
+
   <div class="card">
     <div class="section-title">🏆 성취 리워드</div>
     <div class="prereq-box">🔒 <strong>전제 조건:</strong> 팀 평균 달성율 80% 이상 + 목표 과목 2과목 이상 0.5등급 향상 시 성취 리워드 지급</div>
-    <input class="reward-inp" id="achieveRewardInp" placeholder="🎁 예) 팀 간식, 학교 생활필요 물품 (개인당 3만원 내)" maxlength="60"
+    <input class="reward-inp" id="achieveRewardInp" placeholder="🎁 예) 팀 간식(피자+치킨+마라탕) / 학교 생활필요 물품(텀블러 2명, 독서대 3명)" maxlength="60"
       oninput="teamShared.achieveReward=this.value">
     <div style="height:16px"></div>
     <div class="section-title">👥 팀원별 이번 주 달성도</div>
@@ -195,8 +211,8 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
   </div>
 
   <div class="card">
-    <div class="section-title">🎯 팀 목표
-      <span class="sec-sub">누구나 수정·체크 가능 · 증빙자료 첨부 필수 · 저장 시 팀 전체 반영</span>
+    <div class="section-title">🎯 이번 주 팀 목표 설정
+      <span class="sec-sub">+ 팀 목표 추가를 눌러 이번 주 팀 목표를 설정해 보세요 · 누구나 수정·체크 가능 · 증빙자료 첨부 필수 (멘토링 사진 등)</span>
     </div>
     <div id="teamGoalList"></div>
     <div class="goal-bottom-row">
@@ -205,7 +221,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
   </div>
 
   <div class="card">
-    <div class="section-title">✏️ 내 개인 목표
+    <div class="section-title">✏️ 이번 주 개인 목표 설정
       <span class="sec-sub">최소 4개 · 증빙자료 첨부 필수 · 팀원에게 공개됩니다</span>
     </div>
     <div id="personalGoalList"></div>
@@ -232,6 +248,9 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
     <div class="section-title">📚 목표 과목 등급 추적
       <span class="sec-sub">팀에서 협의한 과목 2개를 작성하세요 · 등급 수치는 나와 교사만 확인 · 향상도만 팀 공개</span>
     </div>
+    <div style="font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:8px 12px;margin-bottom:8px">
+      📝 과목명을 직접 입력하세요 (예: 수학, 영어, 국어 등)
+    </div>
     <div id="subjectBlock"></div>
     <button class="add-btn" style="margin-top:8px" onclick="addSubject()">+ 과목 추가</button>
   </div>
@@ -239,7 +258,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 </div>
 
 <script>
-const SHEETS_URL='https://script.google.com/macros/s/AKfycbx7gNWs0w8WKiekAM9vuypBctySsQsVotZg1fMd15WRbSc9cmj4Br7EDmNB2PCg4FILhw/exec';
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbw5cREBxq5vEy9QOYwtjlBBOiDVSJs76Tc1IP3VXXnzUvE66sc1VJTT8m2c7i19QShw/exec';
 const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d'];
 const TEAM_MAP={
   'TEAM01':'1모둠','TEAM02':'2모둠','TEAM03':'3모둠','TEAM04':'4모둠','TEAM05':'5모둠',
@@ -262,7 +281,12 @@ let teamShared={achieveReward:'',
 // myWeeks: 내 개인 데이터 (로컬)
 let myWeeks=Array.from({length:5},(_,i)=>({
   week:i+1,
-  personalGoals:[],
+  personalGoals:[
+    {text:i===0?'매일 비문학 지문 2세트 풀고 분석':'', checked:false, files:[], checkTs:''},
+    {text:i===0?'1주일에 영단어 100개 암기':'', checked:false, files:[], checkTs:''},
+    {text:'', checked:false, files:[], checkTs:''},
+    {text:'', checked:false, files:[], checkTs:''},
+  ],
   memberChecked:{},  // {memberName: [bool, bool, ...]}
   subjects:[{name:'수학',mid:'',final:''},{name:'영어',mid:'',final:''}],
   saveTs:'',
@@ -287,7 +311,22 @@ function saveLocal(){
   try{localStorage.setItem(localKey('weeks'),JSON.stringify(myWeeks));}catch(e){}
 }
 function loadLocal(){
-  try{const d=localStorage.getItem(localKey('weeks'));if(d)myWeeks=JSON.parse(d);}catch(e){}
+  try{
+    const d=localStorage.getItem(localKey('weeks'));
+    if(d) myWeeks=JSON.parse(d);
+  }catch(e){}
+  // 로드 후 항상 전체 주차 목표 보정
+  const defaults=['매일 비문학 지문 2세트 풀고 분석','1주일에 영단어 100개 암기','',''];
+  myWeeks.forEach((w,wi)=>{
+    if(!w.personalGoals) w.personalGoals=[];
+    while(w.personalGoals.length<4){
+      const idx=w.personalGoals.length;
+      w.personalGoals.push({
+        text:(wi===0&&idx<2)?defaults[idx]:'',
+        checked:false,files:[],checkTs:''
+      });
+    }
+  });
 }
 function myGradeKey(){return `${myTeamCode}_grades_${myName}`;}
 function loadMyGrades(){try{const g=localStorage.getItem(myGradeKey());return g?JSON.parse(g):[];}catch(e){return [];}}
@@ -371,7 +410,10 @@ async function saveTeamConfig(){
 async function sendWeeklyToSheets(){
   const w=wd();
   const goals=w.personalGoals.filter(g=>g.text.trim());
-  const myRate=getMemberRate(myName,currentWeek);
+  // 달성률: 체크된 수 / 전체 목표 수 (빈칸 포함)
+  const totalGoals=wd().personalGoals.length||4;
+  const checkedGoals=wd().personalGoals.filter(g=>g.checked).length;
+  const myRate=Math.round(checkedGoals/totalGoals*100);
   const allRates=Array.from({length:5},(_,i)=>{
     const r=getMemberRate(myName,i+1);
     return r!==null?r:null;
@@ -398,6 +440,10 @@ async function sendWeeklyToSheets(){
     payload[`목표${i+1}`]=g.text;
     payload[`목표${i+1}체크`]=String(g.checked||false);
     payload[`목표${i+1}시각`]=g.checkTs||'';
+    // Drive URL이 있으면 전송 (없으면 빈값)
+    const driveFile=g.files&&g.files.find(f=>f.url&&f.url.includes('drive.google.com'));
+    payload[`목표${i+1}파일URL`]=driveFile?driveFile.url:'';
+    payload[`목표${i+1}파일명`]=g.files&&g.files.length?g.files[0].name:'';
   });
   // 팀 목표 체크 여부
   teamShared.teamGoals.forEach((g,i)=>{
@@ -431,10 +477,10 @@ async function sendWeeklyToSheets(){
 function getMemberRate(memberName,week){
   if(memberName===myName){
     const w=myWeeks[week-1];
-    const goals=w.personalGoals.filter(g=>g.text.trim());
-    if(!goals.length) return null;
-    const checked=goals.filter(g=>g.checked).length;
-    return Math.round(checked/goals.length*100);
+    const total=w.personalGoals.length; // 전체 목표 수 (빈칸 포함)
+    if(!total) return null;
+    const checked=w.personalGoals.filter(g=>g.checked).length;
+    return Math.round(checked/total*100);
   }
   const d=allMemberData[memberName]&&allMemberData[memberName][week];
   return d?d.rate:null;
@@ -457,7 +503,7 @@ async function tryLogin(){
   err.style.display='none';
   loading.style.display='block';
   myTeamCode=code; myName=name;
-  sessionStorage.setItem('tc',code); sessionStorage.setItem('tn',name);
+  localStorage.setItem('tc',code); localStorage.setItem('tn',name);
   loadLocal();
   await loadTeamShared();
   await loadAllMemberData();
@@ -467,7 +513,7 @@ async function tryLogin(){
 }
 
 function doLogout(){
-  sessionStorage.removeItem('tc'); sessionStorage.removeItem('tn');
+  localStorage.removeItem('tc'); localStorage.removeItem('tn');
   myTeamCode=''; myName=''; myMemberIdx=-1;
   document.getElementById('loginWrap').style.display='flex';
   document.getElementById('mainDash').style.display='none';
@@ -482,15 +528,17 @@ function showDash(){
   if(inp) inp.value=teamShared.achieveReward;
   render();
   loadFeedback();
+  loadNotice();
   // 30초마다 팀 데이터 자동 새로고침
   setInterval(async()=>{
     await loadTeamShared();
     await loadAllMemberData();
     await loadFeedback();
+    await loadNotice();
     renderMembers();
     renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     renderCumulative();
-  },30000);
+  },10000);
 }
 
 function findMyIdx(){myMemberIdx=teamConfig.members.findIndex(m=>m.name===myName);}
@@ -547,6 +595,46 @@ function renderMembers(){
     const chipLabel=p>=80?'달성':'진행중';
     const roleClass=m.role==='멘토'?'badge-mentor':'badge-mentee';
     const saveTs=isMe?wd().saveTs:(allMemberData[m.name]&&allMemberData[m.name][currentWeek]?allMemberData[m.name][currentWeek].saveTs:'');
+    // 팀원 개인 목표 목록 가져오기
+    let memberGoalsHtml='';
+    if(isMe){
+      const myGoals=wd().personalGoals.filter(g=>g.text.trim());
+      if(myGoals.length){
+        memberGoalsHtml=`<div style="margin-top:8px;text-align:left;width:100%">`;
+        myGoals.forEach((g,gi)=>{
+          memberGoalsHtml+=`<div style="display:flex;align-items:flex-start;gap:5px;padding:3px 0;border-bottom:0.5px solid #f1f5f9;font-size:11px">
+            <span style="color:${g.checked?'#059669':'#cbd5e1'};flex-shrink:0;margin-top:1px">${g.checked?'✅':'○'}</span>
+            <span style="color:${g.checked?'#1e293b':'#64748b'};line-height:1.4">${g.text}</span>
+            ${g.files&&g.files.find(f=>f.url&&f.url.includes('drive.google.com'))?
+              `<a href="${g.files.find(f=>f.url&&f.url.includes('drive.google.com')).url}" target="_blank"
+                style="flex-shrink:0;font-size:10px;color:#2563eb;text-decoration:none">📎</a>`:''}
+          </div>`;
+        });
+        memberGoalsHtml+=`</div>`;
+      }
+    } else {
+      // 다른 팀원 목표 (Sheets에서 불러온 데이터)
+      const memberData=allMemberData[m.name]&&allMemberData[m.name][currentWeek];
+      if(memberData&&memberData.goals&&memberData.goals.length){
+        memberGoalsHtml=`<div style="margin-top:8px;text-align:left;width:100%">`;
+        memberData.goals.filter(g=>typeof g==='object'?g.text:g).forEach((g)=>{
+          const text=typeof g==='object'?g.text:g;
+          const checked=typeof g==='object'?g.checked:false;
+          const fileUrl=typeof g==='object'?g.fileUrl:'';
+          if(!text) return;
+          memberGoalsHtml+=`<div style="display:flex;align-items:flex-start;gap:5px;padding:3px 0;border-bottom:0.5px solid #f1f5f9;font-size:11px">
+            <span style="color:${checked?'#059669':'#cbd5e1'};flex-shrink:0;margin-top:1px">${checked?'✅':'○'}</span>
+            <span style="color:${checked?'#1e293b':'#64748b'};line-height:1.4">${text}</span>
+            ${fileUrl?`<a href="${fileUrl}" target="_blank"
+              style="flex-shrink:0;font-size:10px;color:#2563eb;text-decoration:none">📎</a>`:''}
+          </div>`;
+        });
+        memberGoalsHtml+=`</div>`;
+      } else if(rate!==null){
+        memberGoalsHtml=`<div style="margin-top:6px;font-size:11px;color:#94a3b8;text-align:left;width:100%">목표 로딩 중...</div>`;
+      }
+    }
+
     grid.innerHTML+=`<div class="member-card${isMe?' me':''}">
       <div class="avatar" style="background:${col}22;color:${col}">${(m.name||'?')[0]}</div>
       <div class="member-name">${m.name||'이름없음'}${isMe?' 🙋':''}</div>
@@ -554,6 +642,7 @@ function renderMembers(){
       <div class="ring-wrap">${drawRing(p,col)}<span class="ring-pct">${rate!==null?p+'%':'—'}</span></div>
       <span class="done-chip ${chipClass}">${rate!==null?chipLabel:'미제출'}</span>
       ${saveTs?`<div class="submit-ts">저장 ${saveTs}</div>`:''}
+      ${memberGoalsHtml}
     </div>`;
   });
 }
@@ -582,7 +671,13 @@ function renderGoalList(goals,listId,isTeam){
     };
     const inp=document.createElement('input');
     inp.className='goal-input';inp.value=g.text;
-    inp.placeholder=isTeam?`팀 목표 ${gi+1}`:`개인 목표 ${gi+1}`;
+    if(isTeam){
+      inp.placeholder='팀 목표 '+(gi+1);
+    } else {
+      const hints=['예) 매일 비문학 지문 2세트 풀고 분석','예) 1주일에 영단어 100개 암기','',''];
+      const hint=hints[gi]||'';
+      inp.placeholder='개인 목표 '+(gi+1)+(hint?'   '+hint:'');
+    }
     inp.readOnly=locked;
     inp.oninput=(e)=>{if(!locked){g.text=e.target.value;if(!isTeam)saveLocal();validateSaveBtn();}};
     const fileBtn=document.createElement('button');
@@ -604,14 +699,62 @@ function renderGoalList(goals,listId,isTeam){
   });
   const hi=document.createElement('input');
   hi.type='file';hi.id='fi_'+(isTeam?'team':'personal');hi.multiple=true;hi.accept='image/*,.pdf,.docx,.hwp';hi.style.display='none';
-  hi.onchange=function(){
+  hi.onchange=async function(){
     const idx=parseInt(this.dataset.target);
     const arr=isTeam?teamShared.teamGoals:wd().personalGoals;
-    Array.from(this.files).forEach(file=>{
+    const files=Array.from(this.files);
+    for(const file of files){
       const isImg=file.type.startsWith('image/');
-      if(isImg){const reader=new FileReader();reader.onload=(e)=>{arr[idx].files.push({name:file.name,url:e.target.result,isImg:true});if(!isTeam)saveLocal();renderGoalList(arr,listId,isTeam);};reader.readAsDataURL(file);}
-      else{arr[idx].files.push({name:file.name,url:'',isImg:false});if(!isTeam)saveLocal();renderGoalList(arr,listId,isTeam);}
-    });this.value='';
+      if(isImg){
+        // 로딩 표시
+        const fileBtn=document.querySelector(`#${listId} .attach-btn`);
+        setSyncBadge('ing','사진 업로드 중...');
+        try{
+          // base64로 읽기
+          const base64=await new Promise((resolve,reject)=>{
+            const reader=new FileReader();
+            reader.onload=e=>resolve(e.target.result);
+            reader.onerror=reject;
+            reader.readAsDataURL(file);
+          });
+          // Drive에 업로드
+          const resp=await fetch(SHEETS_URL,{
+            method:'POST',
+            body:JSON.stringify({
+              type:'upload_image',
+              imageData:base64,
+              fileName:`${myTeamCode}_${myName}_${Date.now()}_${file.name}`,
+              mimeType:file.type,
+            })
+          });
+          const json=await resp.json();
+          if(json.result==='success'){
+            // Drive URL 사용
+            arr[idx].files.push({name:file.name,url:json.url,isImg:true,driveId:json.fileId});
+            setSyncBadge('ok','사진 업로드 완료');
+          } else {
+            // Drive 실패 시 로컬로 폴백
+            arr[idx].files.push({name:file.name,url:base64,isImg:true});
+            setSyncBadge('ok','동기화됨');
+          }
+        }catch(e){
+          // 오류 시 로컬 저장으로 폴백
+          const base64=await new Promise((resolve)=>{
+            const reader=new FileReader();
+            reader.onload=e=>resolve(e.target.result);
+            reader.readAsDataURL(file);
+          });
+          arr[idx].files.push({name:file.name,url:base64,isImg:true});
+          setSyncBadge('err','업로드 실패 - 로컬 저장');
+          setTimeout(()=>setSyncBadge('ok','동기화됨'),2000);
+        }
+      } else {
+        arr[idx].files.push({name:file.name,url:'',isImg:false});
+      }
+      if(!isTeam)saveLocal();
+      renderGoalList(arr,listId,isTeam);
+    }
+    this.value='';
   };
   el.appendChild(hi);
 }
@@ -625,17 +768,19 @@ function addPersonalGoal(){
 }
 
 function validateSaveBtn(){
-  const goals=wd().personalGoals.filter(g=>g.text.trim());
-  const btn=document.getElementById('saveWeekBtn');const warn=document.getElementById('goalWarnMsg');if(!btn)return;
-  if(warn) warn.style.display='none';
+  const btn=document.getElementById('saveWeekBtn');
+  const warn=document.getElementById('goalWarnMsg');
   if(btn) btn.disabled=false;
+  if(warn) warn.style.display='none';
 }
 
 // ── 과목 등급 ──
 function renderSubjects(){
   const el=document.getElementById('subjectBlock');if(!el)return;el.innerHTML='';
   let sharedSubjects=[];try{const d=localStorage.getItem(`${myTeamCode}_shared_subjects`);if(d)sharedSubjects=JSON.parse(d);}catch(e){}
-  if(!sharedSubjects.length)sharedSubjects=[{name:'수학',examType:'midterm'},{name:'영어',examType:'midterm'}];
+  if(!sharedSubjects.length) sharedSubjects=[{name:'',examType:'midterm'},{name:'',examType:'midterm'}];
+  // 항상 최소 2개 보장
+  while(sharedSubjects.length<2) sharedSubjects.push({name:'',examType:'midterm'});
   const myGrades=loadMyGrades();
   sharedSubjects.forEach((s,i)=>{
     const myG=myGrades[i]||{before:'',after:''};
@@ -754,7 +899,33 @@ async function loadFeedback(){
   }catch(e){}
 }
 
+// ── 공지사항 불러오기 ──
+async function loadNotice(){
+  try{
+    const res=await fetch(`${SHEETS_URL}?type=notice&t=${Date.now()}`);
+    const json=await res.json();
+    if(json.result==='success'&&json.data&&json.data.content){
+      const el=document.getElementById('noticeContent');
+      const ts=document.getElementById('noticeTimestamp');
+      if(el){
+        // 줄바꿈 처리
+        el.innerHTML=json.data.content.replace(/\n/g,'<br>');
+      }
+      if(ts) ts.textContent=`${json.data.teacherName} · ${json.data.timestamp}`;
+    }
+  }catch(e){}
+}
+
+function ensureMinGoals(){
+  const w=wd();
+  if(!w.personalGoals) w.personalGoals=[];
+  while(w.personalGoals.length<4){
+    w.personalGoals.push({text:'',checked:false,files:[],checkTs:''});
+  }
+}
+
 function render(){
+  ensureMinGoals();
   buildWeekTabs();renderMembers();
   renderGoalList(teamShared.teamGoals,'teamGoalList',true);
   renderGoalList(wd().personalGoals,'personalGoalList',false);
@@ -764,9 +935,22 @@ function render(){
   if(notice){notice.style.display=locked?'block':'none';notice.textContent=locked?`${currentWeek}주차는 지난 주차로 수정이 불가합니다.`:'';}
 }
 
+// 페이지가 다시 활성화될 때 자동 새로고침 (다른 탭 갔다가 돌아올 때)
+document.addEventListener('visibilitychange', async()=>{
+  if(document.visibilityState==='visible' && myTeamCode){
+    await loadTeamShared();
+    await loadAllMemberData();
+    await loadFeedback();
+    await loadNotice();
+    renderMembers();
+    renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+    renderCumulative();
+  }
+});
+
 // 이전 세션 복구
 (async function(){
-  const tc=sessionStorage.getItem('tc'),tn=sessionStorage.getItem('tn');
+  const tc=localStorage.getItem('tc'),tn=localStorage.getItem('tn');
   if(tc&&tn&&TEAM_MAP[tc]){
     myTeamCode=tc;myName=tn;
     loadLocal();
