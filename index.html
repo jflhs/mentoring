@@ -282,8 +282,8 @@ let teamShared={achieveReward:'',
 let myWeeks=Array.from({length:5},(_,i)=>({
   week:i+1,
   personalGoals:[
-    {text:i===0?'매일 비문학 지문 2세트 풀고 분석':'', checked:false, files:[], checkTs:''},
-    {text:i===0?'1주일에 영단어 100개 암기':'', checked:false, files:[], checkTs:''},
+    {text:'', checked:false, files:[], checkTs:''},
+    {text:'', checked:false, files:[], checkTs:''},
     {text:'', checked:false, files:[], checkTs:''},
     {text:'', checked:false, files:[], checkTs:''},
   ],
@@ -316,15 +316,10 @@ function loadLocal(){
     if(d) myWeeks=JSON.parse(d);
   }catch(e){}
   // 로드 후 항상 전체 주차 목표 보정
-  const defaults=['매일 비문학 지문 2세트 풀고 분석','1주일에 영단어 100개 암기','',''];
-  myWeeks.forEach((w,wi)=>{
+  myWeeks.forEach((w)=>{
     if(!w.personalGoals) w.personalGoals=[];
     while(w.personalGoals.length<4){
-      const idx=w.personalGoals.length;
-      w.personalGoals.push({
-        text:(wi===0&&idx<2)?defaults[idx]:'',
-        checked:false,files:[],checkTs:''
-      });
+      w.personalGoals.push({text:'',checked:false,files:[],checkTs:''});
     }
   });
 }
@@ -688,9 +683,37 @@ function renderGoalList(goals,listId,isTeam){
     block.appendChild(topDiv);
     if(g.files&&g.files.length){
       const thumbRow=document.createElement('div');thumbRow.className='thumb-row';
-      g.files.forEach(f=>{
-        if(f.isImg&&f.url){const img=document.createElement('img');img.className='thumb-img';img.src=f.url;img.alt=f.name;thumbRow.appendChild(img);}
-        else{const chip=document.createElement('div');chip.className='file-chip';chip.textContent='📄 '+f.name;thumbRow.appendChild(chip);}
+      g.files.forEach((f,fi)=>{
+        const wrapper=document.createElement('div');
+        wrapper.style.cssText='position:relative;display:inline-block';
+        if(f.isImg&&f.url){
+          const img=document.createElement('img');
+          img.className='thumb-img';img.src=f.url;img.alt=f.name;
+          // 클릭하면 크게 보기
+          if(f.url.includes('drive.google.com')){
+            img.style.cursor='pointer';
+            img.onclick=()=>window.open(f.url,'_blank');
+            img.title='클릭하면 크게 볼 수 있어요';
+          }
+          wrapper.appendChild(img);
+        } else {
+          const chip=document.createElement('div');chip.className='file-chip';chip.textContent='📄 '+f.name;wrapper.appendChild(chip);
+        }
+        // 삭제 버튼
+        if(!locked){
+          const delBtn=document.createElement('button');
+          delBtn.style.cssText='position:absolute;top:-6px;right:-6px;width:18px;height:18px;border-radius:50%;background:#dc2626;color:#fff;border:none;cursor:pointer;font-size:11px;line-height:1;display:flex;align-items:center;justify-content:center;padding:0;font-family:inherit';
+          delBtn.textContent='✕';
+          delBtn.title='삭제';
+          delBtn.onclick=(e)=>{
+            e.stopPropagation();
+            g.files.splice(fi,1);
+            if(!isTeam) saveLocal();
+            renderGoalList(isTeam?teamShared.teamGoals:wd().personalGoals,listId,isTeam);
+          };
+          wrapper.appendChild(delBtn);
+        }
+        thumbRow.appendChild(wrapper);
       });
       block.appendChild(thumbRow);
     }
