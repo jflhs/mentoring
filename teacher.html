@@ -379,7 +379,7 @@ function processData(rows){
     const saveTs=row['저장시각']||'';
     const memberName=row['팀원이름']||'';
     if(!code) return;
-    if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{}};
+    if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{},subjectDiffs:{},achieveReward:''};
     teams[code].members.add(memberName);
     if(!teams[code].weeks[week]||saveTs>teams[code].weeks[week].saveTs){
       teams[code].weeks[week]={
@@ -393,6 +393,7 @@ function processData(rows){
     }
     // 과목 향상도 (팀 과목 2개 기준 - 팀원 평균)
     if(row['과목1명']||row['과목2명']){
+      if(!teams[code].subjectDiffs) teams[code].subjectDiffs={};
       if(!teams[code].subjectDiffs[week]) teams[code].subjectDiffs[week]={};
       ['1','2','3'].forEach(n=>{
         const nm=row[`과목${n}명`]||'';
@@ -446,7 +447,7 @@ function renderMetrics(){
   const ok=submitted.filter(t=>{
     if(t.weeks[currentWeek].rate<80) return false;
     // 팀 과목 2개 향상도 확인
-    const subjs=t.subjects[currentWeek]||[];
+    const subjs=(t.subjects&&t.subjects[currentWeek])||[];
     if(subjs.length<2) return false;
     return subjs.slice(0,2).every(s=>parseFloat(s.diff||0)>=0.5);
   }).length;
@@ -466,7 +467,7 @@ function renderTeamGrid(){
   // 미제출 팀도 포함 (TEAM_MAP 기준)
   const existCodes=new Set(teams.map(t=>t.code));
   Object.entries(TEAM_MAP).forEach(([code,name])=>{
-    if(!existCodes.has(code)) teams.push({code,name,weeks:{},members:new Set(),subjects:{}});
+    if(!existCodes.has(code)) teams.push({code,name,weeks:{},members:new Set(),subjects:{},subjectDiffs:{},achieveReward:''});
   });
 
   if(filter==='ok') teams=teams.filter(t=>t.weeks[currentWeek]&&t.weeks[currentWeek].rate>=80);
