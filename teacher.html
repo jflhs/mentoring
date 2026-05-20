@@ -569,7 +569,7 @@ function showPersonDetail(team, memberName, memberIdx){
   if(personTrendChartRef) personTrendChartRef.destroy();
   personTrendChartRef=new Chart(document.getElementById('personTrendChart'),{
     type:'line',
-    data:{labels:['1주','2주','3주','4주','5주','5주'],
+    data:{labels:['1주','2주','3주','4주','5주'],
       datasets:[{label:'달성률',data:allRates,borderColor:col,backgroundColor:col+'18',
         tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:col,spanGaps:false}]},
     options:{responsive:true,maintainAspectRatio:false,
@@ -726,7 +726,7 @@ function closeDetail(){selectedTeam=null;document.getElementById('detailCard').s
 
 function renderTrend(){
   if(trendChartRef) trendChartRef.destroy();
-  const labels=['1주','2주','3주','4주','5주','5주'];
+  const labels=['1주','2주','3주','4주','5주'];
   const avgByWeek=labels.map((_,wi)=>{
     const rates=allData.filter(t=>t.weeks[wi+1]).map(t=>t.weeks[wi+1].rate);
     return rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):null;
