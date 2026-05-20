@@ -217,6 +217,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
     <div id="teamGoalList"></div>
     <div class="goal-bottom-row">
       <button class="add-btn" onclick="addTeamGoal()">+ 팀 목표 추가</button>
+      <button class="save-week-btn" id="saveTeamGoalBtn" onclick="saveTeamGoalOnly()" style="background:#059669">💾 팀 목표 저장</button>
     </div>
   </div>
 
@@ -366,11 +367,25 @@ async function loadAllMemberData(){
       const existing=allMemberData[name][week];
       if(!existing||String(r['저장시각'])>String(existing.saveTs)){
         const goals=[];
-        for(let i=1;i<=8;i++){if(r[`목표${i}`]) goals.push({text:r[`목표${i}`],checked:r[`목표${i}체크`]==='true',checkTs:r[`목표${i}시각`]||''});}
+        for(let i=1;i<=8;i++){
+          if(r[`목표${i}`]) goals.push({
+            text:r[`목표${i}`],
+            checked:r[`목표${i}체크`]==='true',
+            checkTs:r[`목표${i}시각`]||'',
+            fileUrl:r[`목표${i}파일URL`]||'',
+            fileName:r[`목표${i}파일명`]||'',
+          });
+        }
         allMemberData[name][week]={
           rate:parseFloat(r['달성률'])||0,
           goals,
           saveTs:r['저장시각']||'',
+          subject1Name:r['과목1명']||'',
+          subject1Diff:r['과목1향상']||'',
+          subject2Name:r['과목2명']||'',
+          subject2Diff:r['과목2향상']||'',
+          subject3Name:r['과목3명']||'',
+          subject3Diff:r['과목3향상']||'',
         };
       }
     });
@@ -630,6 +645,44 @@ function renderMembers(){
       }
     }
 
+    // 과목 향상도 HTML
+    let subjectHtml='';
+    if(isMe){
+      let sharedSubs=[];
+      try{const d=localStorage.getItem(`${myTeamCode}_shared_subjects`);if(d)sharedSubs=JSON.parse(d);}catch(e){}
+      const myGrades=loadMyGrades();
+      const subs=sharedSubs.slice(0,2).map((s,si)=>{
+        const g=myGrades[si]||{before:'',after:''};
+        const b=parseFloat(g.before)||0,a=parseFloat(g.after)||0;
+        const diff=b&&a?(b-a):null;
+        return {name:s.name,diff};
+      }).filter(s=>s.name);
+      if(subs.length){
+        subjectHtml=`<div style="margin-top:6px;width:100%;text-align:left">`;
+        subs.forEach(s=>{
+          const diffStr=s.diff!==null?(s.diff>=0.5?`<span style="color:#059669;font-size:10px">▲${s.diff.toFixed(1)}등급</span>`:`<span style="color:#f59e0b;font-size:10px">▲${s.diff.toFixed(1)}등급</span>`):'';
+          subjectHtml+=`<div style="font-size:11px;color:#64748b;display:flex;justify-content:space-between;padding:2px 0">${s.name} ${diffStr}</div>`;
+        });
+        subjectHtml+=`</div>`;
+      }
+    } else {
+      const md=allMemberData[m.name]&&allMemberData[m.name][currentWeek];
+      if(md){
+        const subs=[
+          {name:md.subject1Name,diff:parseFloat(md.subject1Diff)||0},
+          {name:md.subject2Name,diff:parseFloat(md.subject2Diff)||0},
+        ].filter(s=>s.name&&md[`subject${[1,2].find(n=>md[`subject${n}Name`]===s.name)}Diff`]);
+        if(subs.length){
+          subjectHtml=`<div style="margin-top:6px;width:100%;text-align:left">`;
+          subs.forEach(s=>{
+            const diffStr=s.diff>=0.5?`<span style="color:#059669;font-size:10px">▲${s.diff.toFixed(1)}등급</span>`:s.diff>0?`<span style="color:#f59e0b;font-size:10px">▲${s.diff.toFixed(1)}등급</span>`:'';
+            subjectHtml+=`<div style="font-size:11px;color:#64748b;display:flex;justify-content:space-between;padding:2px 0">${s.name} ${diffStr}</div>`;
+          });
+          subjectHtml+=`</div>`;
+        }
+      }
+    }
+
     grid.innerHTML+=`<div class="member-card${isMe?' me':''}">
       <div class="avatar" style="background:${col}22;color:${col}">${(m.name||'?')[0]}</div>
       <div class="member-name">${m.name||'이름없음'}${isMe?' 🙋':''}</div>
@@ -637,6 +690,7 @@ function renderMembers(){
       <div class="ring-wrap">${drawRing(p,col)}<span class="ring-pct">${rate!==null?p+'%':'—'}</span></div>
       <span class="done-chip ${chipClass}">${rate!==null?chipLabel:'미제출'}</span>
       ${saveTs?`<div class="submit-ts">저장 ${saveTs}</div>`:''}
+      ${subjectHtml}
       ${memberGoalsHtml}
     </div>`;
   });
@@ -877,6 +931,18 @@ function renderCumulative(){
     const v=r===null?0:r;const col=v>=80?'#2563eb':v>=50?'#f59e0b':'#dc2626';
     barsEl.innerHTML+=`<div class="week-prog-row"><div class="week-dot" style="background:${r===null?'#cbd5e1':col}"></div><span class="week-prog-label">${i+1}주차</span><div class="week-prog-bar"><div class="week-prog-fill" style="width:${v}%;background:${col}"></div></div><span class="week-prog-val">${r===null?'—':v+'%'}</span></div>`;
   });
+}
+
+// ── 팀 목표만 저장 ──
+async function saveTeamGoalOnly(){
+  const btn=document.getElementById('saveTeamGoalBtn');
+  const orig=btn.textContent;
+  btn.textContent='저장 중...';btn.disabled=true;
+  setSyncBadge('ing','팀 목표 저장 중...');
+  await saveTeamConfig();
+  setSyncBadge('ok','팀 목표 저장됨');
+  btn.textContent='✅ 저장됐어요!';
+  setTimeout(()=>{btn.textContent=orig;btn.disabled=false;},2000);
 }
 
 // ── 저장 ──

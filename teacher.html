@@ -69,23 +69,6 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 </head>
 <body>
 
-<!-- 비밀번호 모달 -->
-<div id="pwModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
-  <div style="background:#fff;border-radius:16px;padding:32px 28px;width:100%;max-width:340px;text-align:center;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
-    <div style="font-size:32px;margin-bottom:12px">🔐</div>
-    <div style="font-size:17px;font-weight:700;color:#1e293b;margin-bottom:6px">교사 인증</div>
-    <div style="font-size:13px;color:#64748b;margin-bottom:20px">비밀번호를 입력하면 전체 학생의<br>정기시험 등급이 공개됩니다</div>
-    <input id="pwInput" type="password" placeholder="비밀번호 입력"
-      style="width:100%;font-size:15px;padding:12px;border:1px solid #e2e8f0;border-radius:10px;outline:none;text-align:center;font-family:inherit;margin-bottom:10px"
-      onkeydown="if(event.key==='Enter')checkPw()">
-    <div id="pwErr" style="font-size:12px;color:#dc2626;margin-bottom:10px;display:none">비밀번호가 틀렸어요.</div>
-    <div style="display:flex;gap:8px">
-      <button onclick="closePwModal()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-size:13px">취소</button>
-      <button onclick="checkPw()" style="flex:1;padding:10px;border:none;border-radius:10px;background:#1e3a6b;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">확인</button>
-    </div>
-  </div>
-</div>
-
 <!-- 피드백 작성 모달 -->
 <div id="feedbackModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
   <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
@@ -144,7 +127,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
     <button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
     <button class="refresh-btn" onclick="openNoticeModal()"
       style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8">📌 공지사항</button>
-    <button class="refresh-btn" id="gradeBtn" onclick="toggleGradeMode()" style="background:#fef9c3;border-color:#fcd34d;color:#92400e">🔒 등급 보기</button>
+
   </div>
 </div>
 
@@ -366,49 +349,7 @@ async function submitFeedback(){
   }
 }
 
-// ── 등급 보기 ──
-const TEACHER_PW = 'jnflhs2026';  // ← 여기서 비밀번호 변경
-let gradeMode = false;
-
-function toggleGradeMode(){
-  if(gradeMode){
-    gradeMode=false;
-    const btn=document.getElementById('gradeBtn');
-    btn.textContent='🔒 등급 보기';
-    btn.style.background='#fef9c3';btn.style.color='#92400e';
-    if(selectedTeam) showDetail(allData.find(t=>t.code===selectedTeam)||{code:selectedTeam,name:selectedTeam,weeks:{},members:new Set(),subjects:{}});
-    return;
-  }
-  document.getElementById('pwModal').style.display='flex';
-  setTimeout(()=>document.getElementById('pwInput').focus(),100);
-}
-
-function closePwModal(){
-  document.getElementById('pwModal').style.display='none';
-  document.getElementById('pwInput').value='';
-  document.getElementById('pwErr').style.display='none';
-}
-
-function checkPw(){
-  const val=document.getElementById('pwInput').value;
-  if(val===TEACHER_PW){
-    gradeMode=true;
-    closePwModal();
-    const btn=document.getElementById('gradeBtn');
-    btn.textContent='🔓 등급 숨기기';
-    btn.style.background='#dcfce7';btn.style.color='#166534';
-    // 현재 열린 상세 화면 새로고침
-    if(selectedTeam){
-      const team=allData.find(t=>t.code===selectedTeam);
-      if(team) showDetail(team);
-    }
-  } else {
-    document.getElementById('pwErr').style.display='block';
-    document.getElementById('pwInput').value='';
-    document.getElementById('pwInput').focus();
-  }
-}
-
+const gradeMode = true; // 교사 대시보드는 항상 등급 표시
 const SHEETS_URL='https://script.google.com/macros/s/AKfycbw5cREBxq5vEy9QOYwtjlBBOiDVSJs76Tc1IP3VXXnzUvE66sc1VJTT8m2c7i19QShw/exec';
 const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
 const TEAM_MAP={
@@ -458,13 +399,15 @@ function processData(rows){
         const df=parseFloat(row[`과목${n}향상`])||0;
         if(nm){
           if(!teams[code].subjectDiffs[week][nm]) teams[code].subjectDiffs[week][nm]=[];
-          teams[code].subjectDiffs[week][nm].push(df);
+          if(df) teams[code].subjectDiffs[week][nm].push(df);
         }
       });
       // subjects 배열로 변환 (팀원 평균)
-      teams[code].subjects[week]=Object.entries(teams[code].subjectDiffs[week]).map(([name,diffs])=>({
-        name, diff:(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1)
-      }));
+      teams[code].subjects[week]=Object.entries(teams[code].subjectDiffs[week])
+        .filter(([name,diffs])=>diffs.length>0)
+        .map(([name,diffs])=>({
+          name, diff:(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1)
+        }));
     }
   });
   return Object.values(teams).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
@@ -582,6 +525,18 @@ function getPersonData(teamCode, memberName){
           }
           return gs;
         })(),
+        subject1Name:r['과목1명']||'',
+        subject1Diff:r['과목1향상']||'',
+        subject1Before:r['과목11차']||'',
+        subject1After:r['과목12차']||'',
+        subject2Name:r['과목2명']||'',
+        subject2Diff:r['과목2향상']||'',
+        subject2Before:r['과목21차']||'',
+        subject2After:r['과목22차']||'',
+        subject3Name:r['과목3명']||'',
+        subject3Diff:r['과목3향상']||'',
+        subject3Before:r['과목31차']||'',
+        subject3After:r['과목32차']||'',
         subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
         subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
         subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
@@ -654,10 +609,12 @@ function showPersonDetail(team, memberName, memberIdx){
 
   const subjEl=document.getElementById('personSubjects');
   subjEl.innerHTML='';
-  const subjs=thisWeek?[
-    {name:thisWeek.subject1Name,diff:thisWeek.subject1Diff,before:thisWeek.subject1Before,after:thisWeek.subject1After},
-    {name:thisWeek.subject2Name,diff:thisWeek.subject2Diff,before:thisWeek.subject2Before,after:thisWeek.subject2After},
-    {name:thisWeek.subject3Name,diff:thisWeek.subject3Diff,before:thisWeek.subject3Before,after:thisWeek.subject3After},
+  // 현재 주차 없으면 다른 주차에서 과목명 찾기
+  const anyWeekData=Object.values(personData).find(w=>w.subject1Name||w.subject2Name);
+  const subjs=(thisWeek||anyWeekData)?[
+    {name:(thisWeek||anyWeekData).subject1Name,diff:(thisWeek||anyWeekData).subject1Diff,before:(thisWeek||anyWeekData).subject1Before,after:(thisWeek||anyWeekData).subject1After},
+    {name:(thisWeek||anyWeekData).subject2Name,diff:(thisWeek||anyWeekData).subject2Diff,before:(thisWeek||anyWeekData).subject2Before,after:(thisWeek||anyWeekData).subject2After},
+    {name:(thisWeek||anyWeekData).subject3Name,diff:(thisWeek||anyWeekData).subject3Diff,before:(thisWeek||anyWeekData).subject3Before,after:(thisWeek||anyWeekData).subject3After},
   ].filter(s=>s.name):[];
   if(!subjs.length) subjEl.innerHTML=`<div class="no-data-msg">과목 데이터 없음</div>`;
   else subjs.forEach(s=>{
