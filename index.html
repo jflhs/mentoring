@@ -247,7 +247,7 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 
   <div class="card">
     <div class="section-title">📚 목표 과목 등급 추적
-      <span class="sec-sub">팀에서 협의한 과목 2개를 작성하세요 · 등급 수치는 나와 교사만 확인 · 향상도만 팀 공개</span>
+      <span class="sec-sub">팀에서 협의한 과목 2개 작성 · 1주차에 현재 등급, 5주차 종료 후 최종 등급 입력 · 등급 수치는 나와 교사만 확인 · 향상도만 팀 공개</span>
     </div>
     <div style="font-size:12px;color:#64748b;background:#f8fafc;border-radius:8px;padding:8px 12px;margin-bottom:8px">
       📝 과목명을 직접 입력하세요 (예: 수학, 영어, 국어 등)
@@ -274,7 +274,41 @@ const TEAM_MAP={
   'TEAM16':'16모둠','TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
 };
 
-let currentWeek=1, myTeamCode='', myName='', myMemberIdx=-1;
+// ── 날짜 기반 주차 자동 계산 ──
+function calcCurrentWeek(){
+  const now = new Date();
+  // 각 주차 시작/잠금 시간 (년, 월-1, 일, 시)
+  const schedule = [
+    { week:1, start: new Date(2026,4,28,0,0),  lock: new Date(2026,5,8,9,0)  },
+    { week:2, start: new Date(2026,5,7,0,0),   lock: new Date(2026,5,15,9,0) },
+    { week:3, start: new Date(2026,5,14,0,0),  lock: new Date(2026,5,22,9,0) },
+    { week:4, start: new Date(2026,5,21,0,0),  lock: new Date(2026,5,29,9,0) },
+    { week:5, start: new Date(2026,5,28,0,0),  lock: null }, // 잠금 없음
+  ];
+  // 현재 시간에 해당하는 주차 찾기 (가장 최근 시작된 주차)
+  let current = 1;
+  for(const s of schedule){
+    if(now >= s.start) current = s.week;
+  }
+  return current;
+}
+
+function isLocked(week){
+  const now = new Date();
+  const schedule = [
+    { week:1, lock: new Date(2026,5,8,9,0)  },
+    { week:2, lock: new Date(2026,5,15,9,0) },
+    { week:3, lock: new Date(2026,5,22,9,0) },
+    { week:4, lock: new Date(2026,5,29,9,0) },
+    { week:5, lock: null },
+  ];
+  const s = schedule.find(s=>s.week===week);
+  if(!s||!s.lock) return false;
+  return now >= s.lock;
+}
+
+let currentWeek=calcCurrentWeek(), myTeamCode='', myName='', myMemberIdx=-1;
+let isEditingTeamGoal=false; // 팀 목표 입력 중 여부
 
 // ── 상태 ──
 const teamConfig={members:[]};
@@ -303,7 +337,6 @@ let myWeeks=Array.from({length:5},(_,i)=>({
 let allMemberData={};  // {memberName: {week: {rate, goals, checked, saveTs}}}
 
 function nowStr(){const d=new Date();return `${d.getMonth()+1}/${d.getDate()} ${d.getHours().toString().padStart(2,'0')}:${d.getMinutes().toString().padStart(2,'0')}`;}
-function isLocked(wi){return wi<currentWeek-1;}
 function wd(){return myWeeks[currentWeek-1];}
 function setSyncBadge(status,msg){
   const el=document.getElementById('syncBadge');
@@ -344,12 +377,13 @@ async function loadTeamShared(){
       const d=json.data;
       // 팀원 구성
       try{const m=JSON.parse(d['팀원구성']||'[]');if(m.length){teamConfig.members=m;}}catch(e){}
-      // 팀 목표
-      try{const tg=JSON.parse(d['팀목표JSON']||'[]');if(tg.length)teamShared.teamGoals=tg;}
-      catch(e){
-        // 구형 포맷 대응
-        teamShared.teamGoals=[d['팀목표1'],d['팀목표2'],d['팀목표3'],d['팀목표4'],d['팀목표5']]
-          .filter(Boolean).map(t=>({text:t,checked:false,files:[],checkTs:''}));
+      // 팀 목표 (입력 중이 아닐 때만 덮어씀)
+      if(!isEditingTeamGoal){
+        try{const tg=JSON.parse(d['팀목표JSON']||'[]');if(tg.length)teamShared.teamGoals=tg;}
+        catch(e){
+          teamShared.teamGoals=[d['팀목표1'],d['팀목표2'],d['팀목표3'],d['팀목표4'],d['팀목표5']]
+            .filter(Boolean).map(t=>({text:t,checked:false,files:[],checkTs:''}));
+        }
       }
       teamShared.achieveReward=d['성취리워드']||'';
       const inp=document.getElementById('achieveRewardInp');
@@ -547,12 +581,15 @@ function showDash(){
   loadNotice();
   // 30초마다 팀 데이터 자동 새로고침
   setInterval(async()=>{
-    await loadTeamShared();
+    // 팀 목표 입력 중이면 loadTeamShared 건너뜀 (입력 내용 보호)
+    if(!isEditingTeamGoal){
+      await loadTeamShared();
+      renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+    }
     await loadAllMemberData();
     await loadFeedback();
     await loadNotice();
     renderMembers();
-    renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     renderCumulative();
   },10000);
 }
@@ -588,7 +625,15 @@ function addMember(){if(teamConfig.members.length>=6)return;teamConfig.members.p
 // ── 주간 탭 ──
 function buildWeekTabs(){
   const el=document.getElementById('weekTabs');el.innerHTML='';
-  for(let i=1;i<=5;i++){const b=document.createElement('button');b.className='wtab'+(i===currentWeek?' active':'');b.textContent=i+'주';b.onclick=()=>{currentWeek=i;render();};el.appendChild(b);}
+  for(let i=1;i<=5;i++){
+    const b=document.createElement('button');
+    const locked=isLocked(i);
+    b.className='wtab'+(i===currentWeek?' active':'');
+    b.textContent=i+'주'+(locked?' 🔒':'');
+    b.title=locked?`${i}주차는 마감되었습니다`:'';
+    b.onclick=()=>{currentWeek=i;render();};
+    el.appendChild(b);
+  }
 }
 
 // ── 원형 그래프 ──
@@ -735,6 +780,10 @@ function renderGoalList(goals,listId,isTeam){
     }
     inp.readOnly=locked;
     inp.oninput=(e)=>{if(!locked){g.text=e.target.value;if(!isTeam)saveLocal();validateSaveBtn();}};
+    if(isTeam){
+      inp.onfocus=()=>{isEditingTeamGoal=true;};
+      inp.onblur=()=>{setTimeout(()=>{isEditingTeamGoal=false;},500);};
+    }
     const fileBtn=document.createElement('button');
     fileBtn.className='attach-btn'+(hasFile?' has-file':'');fileBtn.disabled=locked;
     fileBtn.textContent=hasFile?`✅ ${g.files.length}개 첨부됨`:'📎 증빙 첨부';
