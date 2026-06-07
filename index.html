@@ -379,7 +379,18 @@ async function loadTeamShared(){
       try{const m=JSON.parse(d['팀원구성']||'[]');if(m.length){teamConfig.members=m;}}catch(e){}
       // 팀 목표 (입력 중이 아닐 때만 덮어씀)
       if(!isEditingTeamGoal){
-        try{const tg=JSON.parse(d['팀목표JSON']||'[]');if(tg.length)teamShared.teamGoals=tg;}
+        try{
+          const tg=JSON.parse(d['팀목표JSON']||'[]');
+          if(tg.length){
+            // files 배열 복원 (Drive URL 포함)
+            teamShared.teamGoals=tg.map(g=>({
+              text:g.text||'',
+              checked:g.checked||false,
+              checkTs:g.checkTs||'',
+              files:(g.files||[]).map(f=>({name:f.name,url:f.url||'',isImg:f.isImg||false})),
+            }));
+          }
+        }
         catch(e){
           teamShared.teamGoals=[d['팀목표1'],d['팀목표2'],d['팀목표3'],d['팀목표4'],d['팀목표5']]
             .filter(Boolean).map(t=>({text:t,checked:false,files:[],checkTs:''}));
@@ -441,7 +452,13 @@ async function saveTeamConfig(){
     teamCode:myTeamCode,
     teamName:TEAM_MAP[myTeamCode]||myTeamCode,
     members:JSON.stringify(teamConfig.members),
-    teamGoalJSON:JSON.stringify(tgoals),
+    // files 포함해서 저장 (Drive URL 보존)
+    teamGoalJSON:JSON.stringify(tgoals.map(g=>({
+      text:g.text||'',
+      checked:g.checked||false,
+      checkTs:g.checkTs||'',
+      files:(g.files||[]).map(f=>({name:f.name,url:f.url,isImg:f.isImg})),
+    }))),
     teamGoal1:tgoals[0]?tgoals[0].text:'',
     teamGoal2:tgoals[1]?tgoals[1].text:'',
     teamGoal3:tgoals[2]?tgoals[2].text:'',
