@@ -371,6 +371,9 @@ let personTrendChartRef=null;
 // Sheets 데이터 → 팀별 집계
 function processData(rows){
   const teams={};
+  // 먼저 팀원별 달성률 수집
+  const memberRates={}; // {teamCode: {week: {memberName: rate}}}
+
   rows.forEach(row=>{
     const code=row['팀코드'];
     const name=row['팀명']||TEAM_MAP[code]||code;
@@ -381,9 +384,19 @@ function processData(rows){
     if(!code) return;
     if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{},subjectDiffs:{},achieveReward:''};
     teams[code].members.add(memberName);
+
+    // 팀원별 달성률 저장 (최신 데이터만)
+    if(!memberRates[code]) memberRates[code]={};
+    if(!memberRates[code][week]) memberRates[code][week]={};
+    if(!memberRates[code][week][memberName]||saveTs>memberRates[code][week][memberName].saveTs){
+      memberRates[code][week][memberName]={rate,saveTs};
+    }
+
+    // 팀 주차 데이터 (팀 목표 등 메타데이터만)
     if(!teams[code].weeks[week]||saveTs>teams[code].weeks[week].saveTs){
       teams[code].weeks[week]={
-        rate,saveTs,
+        rate:0, // 나중에 팀원 평균으로 계산
+        saveTs,
         goal1:row['목표1']||'',goal2:row['목표2']||'',
         goal3:row['목표3']||'',goal4:row['목표4']||'',
         teamGoal1:row['팀목표1']||'',teamGoal2:row['팀목표2']||'',
@@ -411,6 +424,20 @@ function processData(rows){
         }));
     }
   });
+  // 팀원 평균 달성률 계산
+  Object.keys(teams).forEach(code=>{
+    const team=teams[code];
+    Object.keys(team.weeks).forEach(week=>{
+      const weekRates=memberRates[code]&&memberRates[code][week];
+      if(weekRates){
+        const rates=Object.values(weekRates).map(m=>m.rate);
+        if(rates.length>0){
+          team.weeks[week].rate=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+        }
+      }
+    });
+  });
+
   return Object.values(teams).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
 }
 
