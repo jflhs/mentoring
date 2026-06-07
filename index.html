@@ -488,12 +488,15 @@ async function sendWeeklyToSheets(){
   const totalGoals=wd().personalGoals.length||4;
   const checkedGoals=wd().personalGoals.filter(g=>g.checked).length;
   const myRate=Math.round(checkedGoals/totalGoals*100);
-  const allRates=Array.from({length:5},(_,i)=>{
-    const r=getMemberRate(myName,i+1);
-    return r!==null?r:null;
+  // 누적달성률: 저장된 주차들의 달성률 평균 (로컬 기준)
+  const allRates=myWeeks.slice(0,currentWeek).map((w,i)=>{
+    const goals=w.personalGoals;
+    const total=goals.length||4;
+    const checked=goals.filter(g=>g.checked).length;
+    return total>0?Math.round(checked/total*100):0;
   });
-  const filled=allRates.filter(r=>r!==null);
-  const cumRate=filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):0;
+  const filledRates=allRates.filter((r,i)=>myWeeks[i].saveTs); // 저장된 주차만
+  const cumRate=filledRates.length?Math.round(filledRates.reduce((a,b)=>a+b,0)/filledRates.length):myRate;
   let sharedSubjects=[];
   try{const d=localStorage.getItem(`${myTeamCode}_shared_subjects`);if(d)sharedSubjects=JSON.parse(d);}catch(e){}
   const myGrades=loadMyGrades();
@@ -841,7 +844,13 @@ function renderGoalList(goals,listId,isTeam){
           delBtn.onclick=(e)=>{
             e.stopPropagation();
             g.files.splice(fi,1);
+            // 파일 모두 삭제되면 체크 해제
+            if(g.files.length===0){
+              g.checked=false;
+              g.checkTs='';
+            }
             if(!isTeam) saveLocal();
+            renderMembers();renderCumulative();
             renderGoalList(isTeam?teamShared.teamGoals:wd().personalGoals,listId,isTeam);
           };
           wrapper.appendChild(delBtn);
@@ -887,10 +896,16 @@ function renderGoalList(goals,listId,isTeam){
           if(json.result==='success'){
             // Drive URL 사용
             arr[idx].files.push({name:file.name,url:json.url,isImg:true,driveId:json.fileId});
+            // 증빙 첨부 성공 시 자동 체크
+            arr[idx].checked=true;
+            if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
             setSyncBadge('ok','사진 업로드 완료');
           } else {
             // Drive 실패 시 로컬로 폴백
             arr[idx].files.push({name:file.name,url:base64,isImg:true});
+            // 로컬 저장도 자동 체크
+            arr[idx].checked=true;
+            if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
             setSyncBadge('ok','동기화됨');
           }
         }catch(e){
@@ -906,6 +921,9 @@ function renderGoalList(goals,listId,isTeam){
         }
       } else {
         arr[idx].files.push({name:file.name,url:'',isImg:false});
+        // 파일 첨부 시 자동 체크
+        arr[idx].checked=true;
+        if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
       }
       if(!isTeam)saveLocal();
       renderGoalList(arr,listId,isTeam);
