@@ -379,7 +379,25 @@ async function loadTeamShared(){
       try{const m=JSON.parse(d['팀원구성']||'[]');if(m.length){teamConfig.members=m;}}catch(e){}
       // 팀 목표 (입력 중이 아닐 때만 덮어씀)
       if(!isEditingTeamGoal){
-        try{const tg=JSON.parse(d['팀목표JSON']||'[]');if(tg.length)teamShared.teamGoals=tg;}
+        try{
+          const tg=JSON.parse(d['팀목표JSON']||'[]');
+          if(tg.length){
+            // files 배열 복원 - 기존 files와 병합 (Drive URL 보존)
+            teamShared.teamGoals=tg.map((g,gi)=>{
+              const existing=teamShared.teamGoals[gi];
+              // Sheets에 files 있으면 사용, 없으면 기존 files 유지
+              const restoredFiles=(g.files&&g.files.length>0)
+                ?g.files.map(f=>({name:f.name,url:f.url||'',isImg:f.isImg||false}))
+                :(existing?existing.files||[]:[]); 
+              return {
+                text:g.text||'',
+                checked:g.checked||false,
+                checkTs:g.checkTs||'',
+                files:restoredFiles,
+              };
+            });
+          }
+        }
         catch(e){
           teamShared.teamGoals=[d['팀목표1'],d['팀목표2'],d['팀목표3'],d['팀목표4'],d['팀목표5']]
             .filter(Boolean).map(t=>({text:t,checked:false,files:[],checkTs:''}));
@@ -441,7 +459,13 @@ async function saveTeamConfig(){
     teamCode:myTeamCode,
     teamName:TEAM_MAP[myTeamCode]||myTeamCode,
     members:JSON.stringify(teamConfig.members),
-    teamGoalJSON:JSON.stringify(tgoals),
+    // files 포함해서 저장 (Drive URL 보존)
+    teamGoalJSON:JSON.stringify(tgoals.map(g=>({
+      text:g.text||'',
+      checked:g.checked||false,
+      checkTs:g.checkTs||'',
+      files:(g.files||[]).map(f=>({name:f.name,url:f.url,isImg:f.isImg})),
+    }))),
     teamGoal1:tgoals[0]?tgoals[0].text:'',
     teamGoal2:tgoals[1]?tgoals[1].text:'',
     teamGoal3:tgoals[2]?tgoals[2].text:'',
@@ -460,16 +484,19 @@ async function saveTeamConfig(){
 async function sendWeeklyToSheets(){
   const w=wd();
   const goals=w.personalGoals.filter(g=>g.text.trim());
-  // 달성률: 체크된 수 / 전체 목표 수 (빈칸 포함)
+  // 달성률: 체크됐거나 증빙자료 첨부된 목표 수 / 전체 목표 수
   const totalGoals=wd().personalGoals.length||4;
-  const checkedGoals=wd().personalGoals.filter(g=>g.checked).length;
+  const checkedGoals=wd().personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
   const myRate=Math.round(checkedGoals/totalGoals*100);
-  const allRates=Array.from({length:5},(_,i)=>{
-    const r=getMemberRate(myName,i+1);
-    return r!==null?r:null;
+  // 누적달성률: 저장된 주차들의 달성률 평균 (로컬 기준)
+  const allRates=myWeeks.slice(0,currentWeek).map((w,i)=>{
+    const goals=w.personalGoals;
+    const total=goals.length||4;
+    const checked=goals.filter(g=>g.checked).length;
+    return total>0?Math.round(checked/total*100):0;
   });
-  const filled=allRates.filter(r=>r!==null);
-  const cumRate=filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):0;
+  const filledRates=allRates.filter((r,i)=>myWeeks[i].saveTs); // 저장된 주차만
+  const cumRate=filledRates.length?Math.round(filledRates.reduce((a,b)=>a+b,0)/filledRates.length):myRate;
   let sharedSubjects=[];
   try{const d=localStorage.getItem(`${myTeamCode}_shared_subjects`);if(d)sharedSubjects=JSON.parse(d);}catch(e){}
   const myGrades=loadMyGrades();
@@ -529,8 +556,9 @@ function getMemberRate(memberName,week){
     const w=myWeeks[week-1];
     const total=w.personalGoals.length; // 전체 목표 수 (빈칸 포함)
     if(!total) return null;
-    const checked=w.personalGoals.filter(g=>g.checked).length;
-    return Math.round(checked/total*100);
+    // 체크됐거나 증빙자료 첨부된 목표 카운팅
+    const done=w.personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
+    return Math.round(done/total*100);
   }
   const d=allMemberData[memberName]&&allMemberData[memberName][week];
   return d?d.rate:null;
@@ -554,12 +582,16 @@ async function tryLogin(){
   loading.style.display='block';
   myTeamCode=code; myName=name;
   localStorage.setItem('tc',code); localStorage.setItem('tn',name);
-  loadLocal();
-  await loadTeamShared();
-  await loadAllMemberData();
+  loadLocal(); // 먼저 로컬 데이터 불러오기
   loading.style.display='none';
   findMyIdx();
-  showDash();
+  showDash(); // 로컬 데이터로 먼저 화면 표시
+  // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
+  await loadTeamShared();
+  await loadAllMemberData();
+  renderMembers();
+  renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+  renderCumulative();
 }
 
 function doLogout(){
@@ -817,7 +849,13 @@ function renderGoalList(goals,listId,isTeam){
           delBtn.onclick=(e)=>{
             e.stopPropagation();
             g.files.splice(fi,1);
+            // 파일 모두 삭제되면 체크 해제
+            if(g.files.length===0){
+              g.checked=false;
+              g.checkTs='';
+            }
             if(!isTeam) saveLocal();
+            renderMembers();renderCumulative();
             renderGoalList(isTeam?teamShared.teamGoals:wd().personalGoals,listId,isTeam);
           };
           wrapper.appendChild(delBtn);
@@ -863,10 +901,16 @@ function renderGoalList(goals,listId,isTeam){
           if(json.result==='success'){
             // Drive URL 사용
             arr[idx].files.push({name:file.name,url:json.url,isImg:true,driveId:json.fileId});
+            // 증빙 첨부 성공 시 자동 체크
+            arr[idx].checked=true;
+            if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
             setSyncBadge('ok','사진 업로드 완료');
           } else {
             // Drive 실패 시 로컬로 폴백
             arr[idx].files.push({name:file.name,url:base64,isImg:true});
+            // 로컬 저장도 자동 체크
+            arr[idx].checked=true;
+            if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
             setSyncBadge('ok','동기화됨');
           }
         }catch(e){
@@ -882,6 +926,9 @@ function renderGoalList(goals,listId,isTeam){
         }
       } else {
         arr[idx].files.push({name:file.name,url:'',isImg:false});
+        // 파일 첨부 시 자동 체크
+        arr[idx].checked=true;
+        if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
       }
       if(!isTeam)saveLocal();
       renderGoalList(arr,listId,isTeam);
@@ -1096,12 +1143,14 @@ function render(){
 // 페이지가 다시 활성화될 때 자동 새로고침 (다른 탭 갔다가 돌아올 때)
 document.addEventListener('visibilitychange', async()=>{
   if(document.visibilityState==='visible' && myTeamCode){
-    await loadTeamShared();
+    if(!isEditingTeamGoal){
+      await loadTeamShared();
+      renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+    }
     await loadAllMemberData();
     await loadFeedback();
     await loadNotice();
     renderMembers();
-    renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     renderCumulative();
   }
 });
@@ -1111,10 +1160,14 @@ document.addEventListener('visibilitychange', async()=>{
   const tc=localStorage.getItem('tc'),tn=localStorage.getItem('tn');
   if(tc&&tn&&TEAM_MAP[tc]){
     myTeamCode=tc;myName=tn;
-    loadLocal();
+    loadLocal(); // 먼저 로컬 데이터 불러오기
+    findMyIdx();showDash(); // 로컬 데이터로 먼저 화면 표시
+    // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
     await loadTeamShared();
     await loadAllMemberData();
-    findMyIdx();showDash();
+    renderMembers();
+    renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+    renderCumulative();
   }
 })();
 </script>
