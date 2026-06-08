@@ -296,7 +296,7 @@ function calcCurrentWeek(){
 function isLocked(week){
   const now = new Date();
   const schedule = [
-    { week:1, lock: new Date(2026,5,8,9,0)  },
+    { week:1, lock: new Date(2026,5,22,9,0) }, // 1주차 잠금 임시 해제
     { week:2, lock: new Date(2026,5,15,9,0) },
     { week:3, lock: new Date(2026,5,22,9,0) },
     { week:4, lock: new Date(2026,5,29,9,0) },
@@ -422,8 +422,8 @@ async function loadAllMemberData(){
       const name=r['팀원이름']||'';
       const week=parseInt(r['주차'])||1;
       if(!allMemberData[name]) allMemberData[name]={};
-      const existing=allMemberData[name][week];
-      if(!existing||String(r['저장시각'])>String(existing.saveTs)){
+      // 항상 덮어쓰기 (Sheets는 시간순, 마지막 행이 최신)
+      if(true){
         const goals=[];
         for(let i=1;i<=8;i++){
           if(r[`목표${i}`]) goals.push({
@@ -445,6 +445,20 @@ async function loadAllMemberData(){
           subject3Name:r['과목3명']||'',
           subject3Diff:r['과목3향상']||'',
         };
+        // 기기 변경 시 복원: 내 데이터를 myWeeks에 반영 (로컬이 비어있을 때만)
+        if(name===myName && goals.length>0){
+          const localGoals=myWeeks[week-1].personalGoals;
+          const localEmpty=localGoals.every(g=>!g.text&&!g.checked&&(!g.files||!g.files.length));
+          if(localEmpty){
+            myWeeks[week-1].personalGoals=goals.map(g=>({
+              text:g.text||'',
+              checked:g.checked||false,
+              files:g.fileUrl?[{url:g.fileUrl,name:g.fileName||''}]:[],
+              checkTs:g.checkTs||'',
+            }));
+            saveLocal();
+          }
+        }
       }
     });
   }catch(e){}
@@ -484,9 +498,9 @@ async function saveTeamConfig(){
 async function sendWeeklyToSheets(){
   const w=wd();
   const goals=w.personalGoals.filter(g=>g.text.trim());
-  // 달성률: 체크된 수 / 전체 목표 수 (빈칸 포함)
+  // 달성률: 체크됐거나 증빙자료 첨부된 목표 수 / 전체 목표 수
   const totalGoals=wd().personalGoals.length||4;
-  const checkedGoals=wd().personalGoals.filter(g=>g.checked).length;
+  const checkedGoals=wd().personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
   const myRate=Math.round(checkedGoals/totalGoals*100);
   // 누적달성률: 저장된 주차들의 달성률 평균 (로컬 기준)
   const allRates=myWeeks.slice(0,currentWeek).map((w,i)=>{
@@ -556,8 +570,9 @@ function getMemberRate(memberName,week){
     const w=myWeeks[week-1];
     const total=w.personalGoals.length; // 전체 목표 수 (빈칸 포함)
     if(!total) return null;
-    const checked=w.personalGoals.filter(g=>g.checked).length;
-    return Math.round(checked/total*100);
+    // 체크됐거나 증빙자료 첨부된 목표 카운팅
+    const done=w.personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
+    return Math.round(done/total*100);
   }
   const d=allMemberData[memberName]&&allMemberData[memberName][week];
   return d?d.rate:null;
@@ -581,12 +596,16 @@ async function tryLogin(){
   loading.style.display='block';
   myTeamCode=code; myName=name;
   localStorage.setItem('tc',code); localStorage.setItem('tn',name);
-  loadLocal();
-  await loadTeamShared();
-  await loadAllMemberData();
+  loadLocal(); // 먼저 로컬 데이터 불러오기
   loading.style.display='none';
   findMyIdx();
-  showDash();
+  showDash(); // 로컬 데이터로 먼저 화면 표시
+  // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
+  await loadTeamShared();
+  await loadAllMemberData();
+  renderMembers();
+  renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+  renderCumulative();
 }
 
 function doLogout(){
@@ -607,18 +626,21 @@ function showDash(){
   loadFeedback();
   loadNotice();
   // 30초마다 팀 데이터 자동 새로고침
+  // 팀원 데이터: 30초마다 새로고침
   setInterval(async()=>{
-    // 팀 목표 입력 중이면 loadTeamShared 건너뜀 (입력 내용 보호)
     if(!isEditingTeamGoal){
       await loadTeamShared();
       renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     }
     await loadAllMemberData();
-    await loadFeedback();
-    await loadNotice();
     renderMembers();
     renderCumulative();
-  },10000);
+  },30000);
+  // 공지/피드백: 60초마다 새로고침
+  setInterval(async()=>{
+    await loadFeedback();
+    await loadNotice();
+  },60000);
 }
 
 function findMyIdx(){myMemberIdx=teamConfig.members.findIndex(m=>m.name===myName);}
@@ -875,12 +897,25 @@ function renderGoalList(goals,listId,isTeam){
         const fileBtn=document.querySelector(`#${listId} .attach-btn`);
         setSyncBadge('ing','사진 업로드 중...');
         try{
-          // base64로 읽기
+          // 이미지 압축 후 base64 변환 (핸드폰 대용량 사진 대응)
           const base64=await new Promise((resolve,reject)=>{
-            const reader=new FileReader();
-            reader.onload=e=>resolve(e.target.result);
-            reader.onerror=reject;
-            reader.readAsDataURL(file);
+            const img=new Image();
+            const url=URL.createObjectURL(file);
+            img.onload=()=>{
+              const MAX=1200;
+              let w=img.width,h=img.height;
+              if(w>MAX||h>MAX){
+                if(w>h){h=Math.round(h*MAX/w);w=MAX;}
+                else{w=Math.round(w*MAX/h);h=MAX;}
+              }
+              const canvas=document.createElement('canvas');
+              canvas.width=w;canvas.height=h;
+              canvas.getContext('2d').drawImage(img,0,0,w,h);
+              URL.revokeObjectURL(url);
+              resolve(canvas.toDataURL('image/jpeg',0.75));
+            };
+            img.onerror=reject;
+            img.src=url;
           });
           // Drive에 업로드
           const resp=await fetch(SHEETS_URL,{
@@ -889,7 +924,7 @@ function renderGoalList(goals,listId,isTeam){
               type:'upload_image',
               imageData:base64,
               fileName:`${myTeamCode}_${myName}_${Date.now()}_${file.name}`,
-              mimeType:file.type,
+              mimeType:'image/jpeg',
             })
           });
           const json=await resp.json();
@@ -1155,10 +1190,14 @@ document.addEventListener('visibilitychange', async()=>{
   const tc=localStorage.getItem('tc'),tn=localStorage.getItem('tn');
   if(tc&&tn&&TEAM_MAP[tc]){
     myTeamCode=tc;myName=tn;
-    loadLocal();
+    loadLocal(); // 먼저 로컬 데이터 불러오기
+    findMyIdx();showDash(); // 로컬 데이터로 먼저 화면 표시
+    // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
     await loadTeamShared();
     await loadAllMemberData();
-    findMyIdx();showDash();
+    renderMembers();
+    renderGoalList(teamShared.teamGoals,'teamGoalList',true);
+    renderCumulative();
   }
 })();
 </script>

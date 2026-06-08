@@ -385,16 +385,15 @@ function processData(rows){
     if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{},subjectDiffs:{},achieveReward:''};
     teams[code].members.add(memberName);
 
-    // 팀원별 달성률 저장 (최신 데이터만)
+    // 팀원별 달성률 저장 (행 순서 기준 마지막 행 = 최신)
     if(!memberRates[code]) memberRates[code]={};
     if(!memberRates[code][week]) memberRates[code][week]={};
-    if(!memberRates[code][week][memberName]||saveTs>memberRates[code][week][memberName].saveTs){
-      memberRates[code][week][memberName]={rate,saveTs};
-    }
+    // 항상 덮어쓰기 (Sheets는 위에서 아래로 시간순 정렬됨)
+    memberRates[code][week][memberName]={rate,saveTs};
 
     // 팀 주차 데이터 (팀 목표 등 메타데이터만)
-    if(!teams[code].weeks[week]||saveTs>teams[code].weeks[week].saveTs){
-      teams[code].weeks[week]={
+    // 항상 덮어쓰기 (마지막 행이 최신)
+    teams[code].weeks[week]={
         rate:0, // 나중에 팀원 평균으로 계산
         saveTs,
         goal1:row['목표1']||'',goal2:row['목표2']||'',
@@ -535,7 +534,9 @@ function getPersonData(teamCode, memberName){
   const result={};
   rawRows.filter(r=>r['팀코드']===teamCode&&r['팀원이름']===memberName).forEach(r=>{
     const week=parseInt(r['주차'])||1;
-    if(!result[week]||String(r['저장시각'])>String(result[week].saveTs)){
+    const rTsRaw=r['타임스탬프']||''; const rTs=rTsRaw?(() => { try { const d=new Date(rTsRaw); return isNaN(d)?0:d.getTime(); } catch(e){return 0;} })():0;
+    const curTs=result[week]&&result[week].ts||0;
+    if(!result[week]||rTs>curTs){
       result[week]={
         rate:parseFloat(r['달성률'])||0,
         cumRate:parseFloat(r['누적달성률'])||0,
