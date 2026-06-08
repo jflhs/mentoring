@@ -1,0 +1,818 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>전남외고 멘토-멘티 교사 모니터링</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f5f9;color:#1e293b;min-height:100vh}
+.wrap{max-width:1100px;margin:0 auto;padding:16px}
+.top{display:flex;align-items:center;justify-content:space-between;margin-bottom:16px;padding-bottom:12px;border-bottom:1px solid #e2e8f0;flex-wrap:wrap;gap:8px}
+.page-title{font-size:18px;font-weight:700;color:#1e293b}
+.page-sub{font-size:12px;color:#64748b;margin-top:2px}
+.week-tabs{display:flex;gap:5px;flex-wrap:wrap}
+.wtab{font-size:13px;padding:6px 12px;border-radius:8px;border:1px solid #cbd5e1;background:#fff;color:#64748b;cursor:pointer;font-weight:500;min-height:36px;font-family:inherit}
+.wtab.active{background:#2563eb;color:#fff;border-color:#2563eb}
+.four-col{display:grid;grid-template-columns:repeat(2,1fr);gap:10px;margin-bottom:14px}
+@media(min-width:640px){.four-col{grid-template-columns:repeat(4,1fr)}}
+.metric{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 16px}
+.metric .lbl{font-size:11px;color:#64748b;margin-bottom:4px}
+.metric .val{font-size:24px;font-weight:700;color:#1e293b}
+.metric .sub{font-size:11px;color:#64748b;margin-top:2px}
+.card{background:#fff;border:1px solid #e2e8f0;border-radius:14px;padding:16px;margin-bottom:12px}
+.card-title{font-size:14px;font-weight:700;color:#1e293b;margin-bottom:12px;display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:8px}
+.filter-row{display:flex;gap:6px;align-items:center;flex-wrap:wrap}
+.filter-sel{font-size:12px;padding:4px 8px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#1e293b;cursor:pointer;font-family:inherit;min-height:34px}
+.refresh-btn{font-size:12px;padding:5px 12px;border:1px solid #e2e8f0;border-radius:8px;background:#fff;color:#2563eb;cursor:pointer;font-family:inherit;display:flex;align-items:center;gap:4px;min-height:34px}
+.refresh-btn:hover{background:#eff6ff}
+.team-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(148px,1fr));gap:10px;margin-bottom:4px}
+.team-card{background:#fff;border:1px solid #e2e8f0;border-radius:12px;padding:14px 12px;cursor:pointer;transition:border-color 0.15s,box-shadow 0.15s}
+.team-card:hover{border-color:#93c5fd;box-shadow:0 2px 8px rgba(37,99,235,0.1)}
+.team-card.selected{border:2px solid #2563eb;box-shadow:0 2px 12px rgba(37,99,235,0.15)}
+.team-card.warn{border-color:#fca5a5}
+.team-card.ok{border-color:#86efac}
+.team-card.no-data{border-color:#e2e8f0;opacity:0.6}
+.tc-name{font-size:13px;font-weight:700;color:#1e293b;margin-bottom:5px}
+.tc-rate{font-size:22px;font-weight:700;margin-bottom:5px}
+.tc-bar{background:#f1f5f9;border-radius:3px;height:5px;overflow:hidden;margin-bottom:6px}
+.tc-fill{height:5px;border-radius:3px}
+.tc-meta{font-size:11px;color:#64748b;margin-bottom:4px}
+.badge{display:inline-block;font-size:10px;padding:2px 8px;border-radius:20px;font-weight:500}
+.b-ok{background:#dcfce7;color:#166534}
+.b-warn{background:#fee2e2;color:#991b1b}
+.b-prog{background:#fef3c7;color:#92400e}
+.b-no{background:#f1f5f9;color:#64748b}
+.detail-grid{display:grid;grid-template-columns:1fr 1fr;gap:14px;margin-bottom:12px}
+@media(max-width:600px){.detail-grid{grid-template-columns:1fr}}
+.detail-section-title{font-size:12px;font-weight:600;color:#64748b;margin-bottom:8px}
+.member-row{display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9}
+.member-row:last-child{border-bottom:none}
+.m-avatar{width:30px;height:30px;border-radius:50%;font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+.m-info{flex:1;min-width:0}
+.m-name{font-size:13px;font-weight:600;color:#1e293b}
+.m-bar{background:#f1f5f9;border-radius:3px;height:5px;overflow:hidden;margin-top:3px}
+.m-bar-fill{height:5px;border-radius:3px}
+.m-pct{font-size:13px;font-weight:600;min-width:36px;text-align:right}
+.goal-item{display:flex;align-items:flex-start;gap:6px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px;color:#1e293b}
+.goal-item:last-child{border-bottom:none}
+.alert-row{display:flex;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid #f1f5f9;font-size:13px;flex-wrap:wrap}
+.alert-row:last-child{border-bottom:none}
+.alert-dot{width:8px;height:8px;border-radius:50%;flex-shrink:0}
+.loading-box{text-align:center;padding:40px;color:#64748b;font-size:14px}
+.loading-spinner{display:inline-block;width:24px;height:24px;border:3px solid #e2e8f0;border-top-color:#2563eb;border-radius:50%;animation:spin 0.8s linear infinite;margin-bottom:12px}
+@keyframes spin{to{transform:rotate(360deg)}}
+.ts-label{font-size:10px;color:#94a3b8;margin-top:3px}
+.no-data-msg{text-align:center;padding:24px;color:#94a3b8;font-size:13px}
+</style>
+</head>
+<body>
+
+<!-- 피드백 작성 모달 -->
+<div id="feedbackModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:460px;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div>
+        <div style="font-size:16px;font-weight:700;color:#1e293b" id="feedbackModalTitle">📝 피드백 작성</div>
+        <div style="font-size:12px;color:#64748b;margin-top:2px" id="feedbackModalTeam"></div>
+      </div>
+      <button onclick="closeFeedbackModal()" style="font-size:20px;background:none;border:none;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <!-- 이전 피드백 -->
+    <div id="prevFeedbacks" style="margin-bottom:12px"></div>
+    <!-- 교사 이름 -->
+    <input id="teacherNameInp" placeholder="선생님 이름 (예: 홍길동 선생님)" maxlength="20"
+      style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit;margin-bottom:8px;color:#1e293b">
+    <!-- 피드백 내용 -->
+    <textarea id="feedbackTextarea" placeholder="팀에 전달할 피드백을 작성해주세요...&#10;&#10;예) 이번 주 달성률이 낮아요. 목표를 좀 더 구체적으로 설정해보세요!" rows="6"
+      style="width:100%;font-size:13px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;outline:none;resize:none;font-family:inherit;color:#1e293b;line-height:1.6"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="closeFeedbackModal()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-size:13px">취소</button>
+      <button onclick="submitFeedback()" style="flex:2;padding:10px;border:none;border-radius:10px;background:#1e3a6b;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">📤 피드백 전송</button>
+    </div>
+    <div id="feedbackSendMsg" style="font-size:12px;text-align:center;margin-top:8px;display:none"></div>
+  </div>
+</div>
+
+<!-- 공지사항 작성 모달 -->
+<div id="noticeModal" style="display:none;position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.5);z-index:1000;align-items:center;justify-content:center">
+  <div style="background:#fff;border-radius:16px;padding:28px;width:100%;max-width:480px;box-shadow:0 8px 32px rgba(0,0,0,0.15)">
+    <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:16px">
+      <div style="font-size:16px;font-weight:700;color:#1e293b">📌 공지사항 작성</div>
+      <button onclick="closeNoticeModal()" style="font-size:20px;background:none;border:none;cursor:pointer;color:#94a3b8">✕</button>
+    </div>
+    <div style="font-size:12px;color:#64748b;margin-bottom:12px">작성한 공지사항은 전체 모든 팀 학생 대시보드 상단에 즉시 표시됩니다.</div>
+    <input id="noticeTeacherInp" placeholder="선생님 이름 (예: 홍길동 선생님)" maxlength="20"
+      style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit;margin-bottom:8px;color:#1e293b">
+    <textarea id="noticeTextarea" rows="7"
+      placeholder="공지사항 내용을 입력하세요.&#10;&#10;예)&#10;🌟 전남외고 Academic Growth 멘토-멘티 프로그램에 오신 것을 환영합니다!&#10;✅ 매주 팀 목표와 개인 목표를 설정하고 달성해보세요.&#10;🏆 성취 리워드 조건: 팀 평균 달성률 80% + 목표 과목 0.5등급 향상"
+      style="width:100%;font-size:13px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;outline:none;resize:none;font-family:inherit;color:#1e293b;line-height:1.7"></textarea>
+    <div style="display:flex;gap:8px;margin-top:10px">
+      <button onclick="closeNoticeModal()" style="flex:1;padding:10px;border:1px solid #e2e8f0;border-radius:10px;background:#fff;color:#64748b;cursor:pointer;font-family:inherit;font-size:13px">취소</button>
+      <button onclick="submitNotice()" style="flex:2;padding:10px;border:none;border-radius:10px;background:#1e3a6b;color:#fff;cursor:pointer;font-family:inherit;font-size:13px;font-weight:600">📌 공지사항 게시</button>
+    </div>
+    <div id="noticeSendMsg" style="font-size:12px;text-align:center;margin-top:8px;display:none"></div>
+  </div>
+</div>
+<div class="wrap">
+
+<div class="top">
+  <div>
+    <div class="page-title">📋 전남외고 멘토-멘티 교사 모니터링</div>
+    <div class="page-sub">2026학년도 · 데이터는 학생이 저장할 때마다 자동 업데이트됩니다</div>
+  </div>
+  <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap">
+    <div class="week-tabs" id="weekTabs"></div>
+    <button class="refresh-btn" onclick="loadData()">🔄 새로고침</button>
+    <button class="refresh-btn" onclick="openNoticeModal()"
+      style="background:#eff6ff;border-color:#bfdbfe;color:#1d4ed8">📌 공지사항</button>
+
+  </div>
+</div>
+
+<div class="four-col">
+  <div class="metric"><div class="lbl">전체 모둠 수</div><div class="val" id="totalTeams">—</div><div class="sub">데이터 제출 모둠</div></div>
+  <div class="metric"><div class="lbl">📊 이번 주 평균 달성률</div><div class="val" id="avgRate">—</div><div class="sub" id="avgSub"></div></div>
+  <div class="metric"><div class="lbl">🏆 80% 이상 달성</div><div class="val" id="okCount">—</div><div class="sub">달성률+과목 조건</div></div>
+  <div class="metric"><div class="lbl">⚠️ 주의 필요</div><div class="val" id="warnCount">—</div><div class="sub">50% 미만 또는 미제출</div></div>
+</div>
+
+<div class="card">
+  <div class="card-title">
+    <span>전체 모둠 현황</span>
+    <div class="filter-row">
+      <select class="filter-sel" id="sortSel" onchange="renderTeamGrid()">
+        <option value="rate">달성률 순</option>
+        <option value="name">모둠명 순</option>
+        <option value="warn">주의 먼저</option>
+      </select>
+      <select class="filter-sel" id="filterSel" onchange="renderTeamGrid()">
+        <option value="all">전체</option>
+        <option value="ok">달성</option>
+        <option value="warn">주의</option>
+        <option value="no">미제출</option>
+      </select>
+    </div>
+  </div>
+  <div id="teamGridWrap">
+    <div class="loading-box"><div class="loading-spinner"></div><br>데이터 불러오는 중...</div>
+  </div>
+</div>
+
+<div class="card" id="detailCard" style="display:none">
+  <div class="card-title">
+    <span id="detailTitle">모둠 상세</span>
+    <button onclick="closeDetail()" style="font-size:12px;padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;color:#64748b;cursor:pointer">✕ 닫기</button>
+  </div>
+  <!-- 성취 리워드 -->
+  <div id="detailReward" style="display:none;background:#fffbeb;border:1px solid #fcd34d;border-radius:10px;padding:10px 14px;margin-bottom:14px"></div>
+
+  <div class="detail-grid">
+    <div>
+      <div class="detail-section-title">👥 팀원별 달성도 <span style="font-size:11px;color:#94a3b8;font-weight:400">— 이름 클릭 시 개인 상세</span></div>
+      <div id="detailMembers"></div>
+    </div>
+    <div>
+      <div class="detail-section-title">✏️ 이번 주 팀 목표</div>
+      <div id="detailGoals"></div>
+    </div>
+  </div>
+  <div>
+    <div class="detail-section-title">📚 목표 과목 향상도</div>
+    <div id="detailSubjects"></div>
+  </div>
+</div>
+
+<!-- 개인 상세 -->
+<div class="card" id="personCard" style="display:none">
+  <div class="card-title">
+    <div style="display:flex;align-items:center;gap:8px">
+      <button onclick="closePersonDetail()" style="font-size:12px;padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;color:#2563eb;cursor:pointer">← 모둠으로</button>
+      <span id="personTitle">개인 상세</span>
+    </div>
+    <button onclick="closePersonDetail();closeDetail();" style="font-size:12px;padding:4px 10px;border:1px solid #e2e8f0;border-radius:8px;background:transparent;color:#64748b;cursor:pointer">✕ 모두 닫기</button>
+  </div>
+  <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px;margin-bottom:16px" id="personMetrics"></div>
+  <div style="margin-bottom:16px">
+    <div class="detail-section-title" style="margin-bottom:10px">📅 주차별 달성률 추이</div>
+    <div style="position:relative;height:160px"><canvas id="personTrendChart" role="img" aria-label="개인 주차별 달성률 추이"></canvas></div>
+  </div>
+  <div style="display:grid;grid-template-columns:1fr 1fr;gap:14px">
+    <div>
+      <div class="detail-section-title">✏️ 이번 주 개인 목표</div>
+      <div id="personGoals"></div>
+    </div>
+    <div>
+      <div class="detail-section-title">📚 과목 향상도</div>
+      <div id="personSubjects"></div>
+      <div style="height:14px"></div>
+      <div class="detail-section-title">🕐 주차별 저장 기록</div>
+      <div id="personSaveLogs"></div>
+    </div>
+  </div>
+</div>
+
+<div class="card">
+  <div class="card-title">주차별 전체 달성률 추이</div>
+  <div style="position:relative;height:200px"><canvas id="trendChart" role="img" aria-label="5주간 전체 모둠 평균 달성률 추이"></canvas></div>
+</div>
+
+<div class="card">
+  <div class="card-title">⚠️ 이번 주 알림 사항</div>
+  <div id="alertList"><div class="no-data-msg">데이터를 불러오는 중이에요...</div></div>
+</div>
+
+</div>
+
+<script>
+
+
+
+// ── 공지사항 ──
+async function openNoticeModal(){
+  // 현재 공지사항 불러오기
+  try{
+    const res=await fetch(`${SHEETS_URL}?type=notice&t=${Date.now()}`);
+    const json=await res.json();
+    if(json.result==='success'&&json.data){
+      document.getElementById('noticeTextarea').value=json.data.content||'';
+      document.getElementById('noticeTeacherInp').value=json.data.teacherName||'';
+    }
+  }catch(e){}
+  document.getElementById('noticeModal').style.display='flex';
+  setTimeout(()=>document.getElementById('noticeTextarea').focus(),100);
+}
+
+function closeNoticeModal(){
+  document.getElementById('noticeModal').style.display='none';
+  document.getElementById('noticeSendMsg').style.display='none';
+}
+
+async function submitNotice(){
+  const content=document.getElementById('noticeTextarea').value.trim();
+  const teacherName=document.getElementById('noticeTeacherInp').value.trim()||'선생님';
+  if(!content){
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#dc2626';
+    document.getElementById('noticeSendMsg').textContent='공지사항 내용을 입력해주세요.';
+    return;
+  }
+  const btn=document.querySelector('#noticeModal button:last-of-type');
+  btn.textContent='게시 중...';btn.disabled=true;
+  try{
+    await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({
+      type:'notice',
+      content,
+      teacherName,
+    })});
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#059669';
+    document.getElementById('noticeSendMsg').textContent='✅ 공지사항이 게시됐어요! 전체 학생 대시보드에 표시됩니다.';
+    btn.textContent='📌 공지사항 게시';btn.disabled=false;
+    setTimeout(()=>closeNoticeModal(),2000);
+  }catch(e){
+    document.getElementById('noticeSendMsg').style.display='block';
+    document.getElementById('noticeSendMsg').style.color='#dc2626';
+    document.getElementById('noticeSendMsg').textContent='게시 실패. 다시 시도해주세요.';
+    btn.textContent='📌 공지사항 게시';btn.disabled=false;
+  }
+}
+
+// ── 피드백 ──
+let feedbackTargetTeam = null;
+
+function openFeedbackModal(team){
+  feedbackTargetTeam = team;
+  document.getElementById('feedbackModalTeam').textContent = team.name + ' · ' + (currentWeek) + '주차';
+  document.getElementById('feedbackTextarea').value = '';
+  document.getElementById('feedbackSendMsg').style.display = 'none';
+  document.getElementById('feedbackModal').style.display = 'flex';
+  loadPrevFeedbacks(team.code);
+  setTimeout(()=>document.getElementById('feedbackTextarea').focus(),100);
+}
+
+function closeFeedbackModal(){
+  document.getElementById('feedbackModal').style.display = 'none';
+  feedbackTargetTeam = null;
+}
+
+async function loadPrevFeedbacks(teamCode){
+  const el = document.getElementById('prevFeedbacks');
+  el.innerHTML = '';
+  try{
+    const res = await fetch(`${SHEETS_URL}?type=feedback&teamCode=${teamCode}&t=${Date.now()}`);
+    const json = await res.json();
+    if(json.result==='success'&&json.data&&json.data.length){
+      el.innerHTML = `<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px">이전 피드백</div>`;
+      json.data.slice(0,3).forEach(fb=>{
+        el.innerHTML += `<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px">
+          <div style="color:#94a3b8;margin-bottom:3px">${fb['교사명']} · ${fb['타임스탬프']}</div>
+          <div style="color:#334155;line-height:1.5">${fb['피드백내용']}</div>
+        </div>`;
+      });
+    }
+  }catch(e){}
+}
+
+async function submitFeedback(){
+  const content = document.getElementById('feedbackTextarea').value.trim();
+  const teacherName = document.getElementById('teacherNameInp').value.trim() || '선생님';
+  if(!content){
+    document.getElementById('feedbackSendMsg').style.display='block';
+    document.getElementById('feedbackSendMsg').style.color='#dc2626';
+    document.getElementById('feedbackSendMsg').textContent='피드백 내용을 입력해주세요.';
+    return;
+  }
+  const btn = document.querySelector('#feedbackModal button:last-of-type');
+  btn.textContent='전송 중...';btn.disabled=true;
+  try{
+    await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({
+      type:'feedback',
+      teamCode:feedbackTargetTeam.code,
+      teamName:feedbackTargetTeam.name,
+      week:currentWeek,
+      content,
+      teacherName,
+    })});
+    document.getElementById('feedbackSendMsg').style.display='block';
+    document.getElementById('feedbackSendMsg').style.color='#059669';
+    document.getElementById('feedbackSendMsg').textContent='✅ 피드백이 전송됐어요! 학생 대시보드에 바로 표시됩니다.';
+    document.getElementById('feedbackTextarea').value='';
+    btn.textContent='📤 피드백 전송';btn.disabled=false;
+    setTimeout(()=>loadPrevFeedbacks(feedbackTargetTeam.code),500);
+  }catch(e){
+    document.getElementById('feedbackSendMsg').style.display='block';
+    document.getElementById('feedbackSendMsg').style.color='#dc2626';
+    document.getElementById('feedbackSendMsg').textContent='전송 실패. 다시 시도해주세요.';
+    btn.textContent='📤 피드백 전송';btn.disabled=false;
+  }
+}
+
+const gradeMode = true; // 교사 대시보드는 항상 등급 표시
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbw5cREBxq5vEy9QOYwtjlBBOiDVSJs76Tc1IP3VXXnzUvE66sc1VJTT8m2c7i19QShw/exec';
+const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
+const TEAM_MAP={
+  'TEAM01':'1모둠','TEAM02':'2모둠','TEAM03':'3모둠','TEAM04':'4모둠',
+  'TEAM05':'5모둠','TEAM06':'6모둠','TEAM07':'7모둠','TEAM08':'8모둠',
+  'TEAM09':'9모둠','TEAM10':'10모둠','TEAM11':'11모둠','TEAM12':'12모둠',
+  'TEAM13':'13모둠','TEAM14':'14모둠','TEAM15':'15모둠','TEAM16':'16모둠',
+  'TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
+
+};
+
+let currentWeek=1;
+let selectedTeam=null;
+let allData=[];
+let rawRows=[];
+let trendChartRef=null;
+let personTrendChartRef=null;
+
+// Sheets 데이터 → 팀별 집계
+function processData(rows){
+  const teams={};
+  // 먼저 팀원별 달성률 수집
+  const memberRates={}; // {teamCode: {week: {memberName: rate}}}
+
+  rows.forEach(row=>{
+    const code=row['팀코드'];
+    const name=row['팀명']||TEAM_MAP[code]||code;
+    const week=parseInt(row['주차'])||1;
+    const rate=parseFloat(row['달성률'])||0;
+    const saveTs=row['저장시각']||'';
+    const memberName=row['팀원이름']||'';
+    if(!code) return;
+    if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{},subjectDiffs:{},achieveReward:''};
+    teams[code].members.add(memberName);
+
+    // 팀원별 달성률 저장 (행 순서 기준 마지막 행 = 최신)
+    if(!memberRates[code]) memberRates[code]={};
+    if(!memberRates[code][week]) memberRates[code][week]={};
+    // 항상 덮어쓰기 (Sheets는 위에서 아래로 시간순 정렬됨)
+    memberRates[code][week][memberName]={rate,saveTs};
+
+    // 팀 주차 데이터 (팀 목표 등 메타데이터만)
+    // 항상 덮어쓰기 (마지막 행이 최신)
+    teams[code].weeks[week]={
+        rate:0, // 나중에 팀원 평균으로 계산
+        saveTs,
+        goal1:row['목표1']||'',goal2:row['목표2']||'',
+        goal3:row['목표3']||'',goal4:row['목표4']||'',
+        teamGoal1:row['팀목표1']||'',teamGoal2:row['팀목표2']||'',
+        incentive:row['성취리워드']||'',
+        memberCount:parseInt(row['팀원수'])||0,
+      };
+    // 과목 향상도 (팀 과목 2개 기준 - 팀원 평균)
+    if(row['과목1명']||row['과목2명']){
+      if(!teams[code].subjectDiffs) teams[code].subjectDiffs={};
+      if(!teams[code].subjectDiffs[week]) teams[code].subjectDiffs[week]={};
+      ['1','2','3'].forEach(n=>{
+        const nm=row[`과목${n}명`]||'';
+        const df=parseFloat(row[`과목${n}향상`])||0;
+        if(nm){
+          if(!teams[code].subjectDiffs[week][nm]) teams[code].subjectDiffs[week][nm]=[];
+          if(df) teams[code].subjectDiffs[week][nm].push(df);
+        }
+      });
+      // subjects 배열로 변환 (팀원 평균)
+      teams[code].subjects[week]=Object.entries(teams[code].subjectDiffs[week])
+        .filter(([name,diffs])=>diffs.length>0)
+        .map(([name,diffs])=>({
+          name, diff:(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1)
+        }));
+    }
+  });
+  // 팀원 평균 달성률 계산
+  Object.keys(teams).forEach(code=>{
+    const team=teams[code];
+    Object.keys(team.weeks).forEach(week=>{
+      const weekRates=memberRates[code]&&memberRates[code][week];
+      if(weekRates){
+        const rates=Object.values(weekRates).map(m=>m.rate);
+        if(rates.length>0){
+          team.weeks[week].rate=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+        }
+      }
+    });
+  });
+
+  return Object.values(teams).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+}
+
+function getWeekRate(team,week){
+  return team.weeks[week]?team.weeks[week].rate:null;
+}
+function getCumRate(team){
+  const rates=Object.values(team.weeks).map(w=>w.rate);
+  return rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):null;
+}
+
+async function loadData(){
+  document.getElementById('teamGridWrap').innerHTML=`<div class="loading-box"><div class="loading-spinner"></div><br>데이터 불러오는 중...</div>`;
+  try{
+    const res=await fetch(SHEETS_URL+'?t='+Date.now());
+    const text=await res.text();
+    let rows=[];
+    try{ rows=JSON.parse(text); }catch(pe){
+      document.getElementById('teamGridWrap').innerHTML=`<div class="no-data-msg">⚠️ 데이터 파싱 오류: ${pe.message}<br><small style="color:#94a3b8">${text.substring(0,100)}</small></div>`;
+      return;
+    }
+    rawRows=Array.isArray(rows)?rows:[];
+    try{ allData=processData(rawRows); }catch(pe){
+      document.getElementById('teamGridWrap').innerHTML=`<div class="no-data-msg">⚠️ 데이터 처리 오류: ${pe.message}</div>`;
+      return;
+    }
+    try{ render(); }catch(pe){
+      document.getElementById('teamGridWrap').innerHTML=`<div class="no-data-msg">⚠️ 화면 렌더링 오류: ${pe.message}</div>`;
+      return;
+    }
+  }catch(e){
+    document.getElementById('teamGridWrap').innerHTML=`<div class="no-data-msg">⚠️ 데이터를 불러오지 못했어요. 새로고침 버튼을 눌러주세요.<br><small style="color:#94a3b8;margin-top:4px;display:block">${e.message}</small></div>`;
+  }
+}
+
+function buildWeekTabs(){
+  const el=document.getElementById('weekTabs');el.innerHTML='';
+  for(let i=1;i<=5;i++){const b=document.createElement('button');b.className='wtab'+(i===currentWeek?' active':'');b.textContent=i+'주';b.onclick=()=>{currentWeek=i;renderAll();};el.appendChild(b);}
+}
+
+function renderMetrics(){
+  const submitted=allData.filter(t=>t.weeks[currentWeek]);
+  const rates=submitted.map(t=>t.weeks[currentWeek].rate);
+  const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0;
+  const ok=submitted.filter(t=>{
+    if(t.weeks[currentWeek].rate<80) return false;
+    // 팀 과목 2개 향상도 확인
+    const subjs=(t.subjects&&t.subjects[currentWeek])||[];
+    if(subjs.length<2) return false;
+    return subjs.slice(0,2).every(s=>parseFloat(s.diff||0)>=0.5);
+  }).length;
+  const warn=allData.length-submitted.filter(t=>t.weeks[currentWeek].rate>=50).length;
+  document.getElementById('totalTeams').textContent=submitted.length+'개';
+  document.getElementById('avgRate').textContent=rates.length?avg+'%':'—';
+  document.getElementById('avgSub').textContent=`제출 ${submitted.length}/${allData.length}모둠`;
+  document.getElementById('okCount').textContent=ok+'개';
+  document.getElementById('warnCount').textContent=warn+'개';
+}
+
+function renderTeamGrid(){
+  const sort=document.getElementById('sortSel').value;
+  const filter=document.getElementById('filterSel').value;
+  let teams=[...allData];
+
+  // 미제출 팀도 포함 (TEAM_MAP 기준)
+  const existCodes=new Set(teams.map(t=>t.code));
+  Object.entries(TEAM_MAP).forEach(([code,name])=>{
+    if(!existCodes.has(code)) teams.push({code,name,weeks:{},members:new Set(),subjects:{},subjectDiffs:{},achieveReward:''});
+  });
+
+  if(filter==='ok') teams=teams.filter(t=>t.weeks[currentWeek]&&t.weeks[currentWeek].rate>=80);
+  else if(filter==='warn') teams=teams.filter(t=>!t.weeks[currentWeek]||t.weeks[currentWeek].rate<50);
+  else if(filter==='no') teams=teams.filter(t=>!t.weeks[currentWeek]);
+
+  if(sort==='rate') teams.sort((a,b)=>(getWeekRate(b,currentWeek)||0)-(getWeekRate(a,currentWeek)||0));
+  else if(sort==='name') teams.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  else if(sort==='warn') teams.sort((a,b)=>(getWeekRate(a,currentWeek)||0)-(getWeekRate(b,currentWeek)||0));
+
+  const wrap=document.getElementById('teamGridWrap');
+  if(!teams.length){wrap.innerHTML=`<div class="no-data-msg">조건에 맞는 모둠이 없어요.</div>`;return;}
+  const grid=document.createElement('div');grid.className='team-grid';
+  teams.forEach(team=>{
+    const wd=team.weeks[currentWeek];
+    const submitted=!!wd;
+    const rate=submitted?wd.rate:null;
+    const cum=getCumRate(team);
+    const col=rate===null?'#cbd5e1':rate>=80?'#2563eb':rate>=50?'#f59e0b':'#dc2626';
+    const badgeHtml=rate===null?`<span class="badge b-no">미제출</span>`:rate>=80?`<span class="badge b-ok">✅ 달성</span>`:rate>=50?`<span class="badge b-prog">진행중</span>`:`<span class="badge b-warn">⚠️ 주의</span>`;
+    const extraClass=rate!==null&&rate>=80?' ok':rate!==null&&rate<50?' warn':!submitted?' no-data':'';
+    const isSelected=selectedTeam===team.code;
+    const card=document.createElement('div');
+    card.className=`team-card${extraClass}${isSelected?' selected':''}`;
+    card.innerHTML=`<div class="tc-name">${team.name}</div>
+      <div class="tc-rate" style="color:${col}">${rate!==null?rate+'%':'—'}</div>
+      <div class="tc-bar"><div class="tc-fill" style="width:${rate||0}%;background:${col}"></div></div>
+      <div class="tc-meta">${team.members.size||'?'}명 참여 · 누적 ${cum!==null?cum+'%':'—'}</div>
+      ${badgeHtml}
+      ${submitted&&wd.saveTs?`<div class="ts-label">저장 ${wd.saveTs}</div>`:''}`;
+    card.onclick=()=>showDetail(team);
+    grid.appendChild(card);
+  });
+  wrap.innerHTML='';wrap.appendChild(grid);
+}
+
+function getPersonData(teamCode, memberName){
+  const result={};
+  rawRows.filter(r=>r['팀코드']===teamCode&&r['팀원이름']===memberName).forEach(r=>{
+    const week=parseInt(r['주차'])||1;
+    if(!result[week]||true){
+      result[week]={
+        rate:parseFloat(r['달성률'])||0,
+        cumRate:parseFloat(r['누적달성률'])||0,
+        saveTs:r['저장시각']||'',
+        goals:(()=>{
+          const gs=[];
+          for(let i=1;i<=8;i++){
+            if(r[`목표${i}`]) gs.push({
+              text:r[`목표${i}`]||'',
+              checked:r[`목표${i}체크`]==='true',
+              checkTs:r[`목표${i}시각`]||'',
+              fileUrl:r[`목표${i}파일URL`]||'',
+              fileName:r[`목표${i}파일명`]||'',
+            });
+          }
+          return gs;
+        })(),
+        subject1Name:r['과목1명']||'',
+        subject1Diff:r['과목1향상']||'',
+        subject1Before:r['과목11차']||'',
+        subject1After:r['과목12차']||'',
+        subject2Name:r['과목2명']||'',
+        subject2Diff:r['과목2향상']||'',
+        subject2Before:r['과목21차']||'',
+        subject2After:r['과목22차']||'',
+        subject3Name:r['과목3명']||'',
+        subject3Diff:r['과목3향상']||'',
+        subject3Before:r['과목31차']||'',
+        subject3After:r['과목32차']||'',
+        subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
+        subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
+        subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
+        subject2Before:r['과목21차']||'',subject2After:r['과목22차']||'',
+        subject3Name:r['과목3명']||'',subject3Diff:r['과목3향상']||'',
+        subject3Before:r['과목31차']||'',subject3After:r['과목32차']||'',
+      };
+    }
+  });
+  return result;
+}
+
+function showPersonDetail(team, memberName, memberIdx){
+  const col=COLORS[memberIdx%COLORS.length];
+  const personData=getPersonData(team.code, memberName);
+  const thisWeek=personData[currentWeek];
+  const allRates=Array.from({length:5},(_,i)=>personData[i+1]?personData[i+1].rate:null);
+  const filled=allRates.filter(r=>r!==null);
+  const cumAvg=filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):0;
+
+  document.getElementById('personCard').style.display='block';
+  document.getElementById('personTitle').innerHTML=`<span style="color:${col};font-weight:700">${memberName}</span> · ${team.name}`;
+
+  document.getElementById('personMetrics').innerHTML=`
+    <div class="metric"><div class="lbl">이번 주 달성률</div><div class="val" style="color:${col}">${thisWeek?thisWeek.rate+'%':'—'}</div></div>
+    <div class="metric"><div class="lbl">5주 누적 달성률</div><div class="val">${cumAvg?cumAvg+'%':'—'}</div></div>
+    <div class="metric"><div class="lbl">제출 주차</div><div class="val">${filled.length}주</div><div class="sub">/ 5주</div></div>`;
+
+  if(personTrendChartRef) personTrendChartRef.destroy();
+  personTrendChartRef=new Chart(document.getElementById('personTrendChart'),{
+    type:'line',
+    data:{labels:['1주','2주','3주','4주','5주'],
+      datasets:[{label:'달성률',data:allRates,borderColor:col,backgroundColor:col+'18',
+        tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:col,spanGaps:false}]},
+    options:{responsive:true,maintainAspectRatio:false,
+      plugins:{legend:{display:false},tooltip:{callbacks:{label:ctx=>` ${ctx.raw}%`}}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},
+              x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+
+  const goalsEl=document.getElementById('personGoals');
+  goalsEl.innerHTML='';
+  if(!thisWeek||!thisWeek.goals.length) goalsEl.innerHTML=`<div class="no-data-msg">이번 주 목표 없음</div>`;
+  else thisWeek.goals.forEach((g,i)=>{
+    const goalText = typeof g === 'object' ? g.text : g;
+    const goalChecked = typeof g === 'object' ? g.checked : false;
+    const goalTs = typeof g === 'object' ? g.checkTs : '';
+    const goalFileUrl = typeof g === 'object' ? g.fileUrl : '';
+    const goalFileName = typeof g === 'object' ? g.fileName : '';
+    const checkIcon = goalChecked
+      ? `<span style="color:#059669;font-size:13px;flex-shrink:0">✅</span>`
+      : `<span style="color:#cbd5e1;font-size:13px;flex-shrink:0">○</span>`;
+    const imgHtml = goalFileUrl
+      ? `<div style="margin-top:5px;padding-left:20px">
+          <img src="${goalFileUrl}" alt="증빙자료"
+            style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer"
+            onclick="window.open('${goalFileUrl}','_blank')"
+            title="클릭하면 크게 볼 수 있어요">
+        </div>`
+      : (goalFileName ? `<div style="margin-top:3px;padding-left:20px;font-size:11px;color:#94a3b8">📎 ${goalFileName}</div>` : '');
+    goalsEl.innerHTML+=`<div class="goal-item" style="flex-direction:column;align-items:flex-start;gap:3px">
+      <div style="display:flex;align-items:center;gap:6px">
+        ${checkIcon}
+        <span style="color:${goalChecked?'#1e293b':'#64748b'};font-size:13px">${goalText}</span>
+        ${goalTs?`<span style="font-size:10px;color:#94a3b8">${goalTs}</span>`:''}
+      </div>
+      ${imgHtml}
+    </div>`;
+  });
+
+  const subjEl=document.getElementById('personSubjects');
+  subjEl.innerHTML='';
+  // 현재 주차 없으면 다른 주차에서 과목명 찾기
+  const anyWeekData=Object.values(personData).find(w=>w.subject1Name||w.subject2Name);
+  const subjs=(thisWeek||anyWeekData)?[
+    {name:(thisWeek||anyWeekData).subject1Name,diff:(thisWeek||anyWeekData).subject1Diff,before:(thisWeek||anyWeekData).subject1Before,after:(thisWeek||anyWeekData).subject1After},
+    {name:(thisWeek||anyWeekData).subject2Name,diff:(thisWeek||anyWeekData).subject2Diff,before:(thisWeek||anyWeekData).subject2Before,after:(thisWeek||anyWeekData).subject2After},
+    {name:(thisWeek||anyWeekData).subject3Name,diff:(thisWeek||anyWeekData).subject3Diff,before:(thisWeek||anyWeekData).subject3Before,after:(thisWeek||anyWeekData).subject3After},
+  ].filter(s=>s.name):[];
+  if(!subjs.length) subjEl.innerHTML=`<div class="no-data-msg">과목 데이터 없음</div>`;
+  else subjs.forEach(s=>{
+    const diff=parseFloat(s.diff)||0;
+    const badge=!s.diff?`<span class="badge b-no">미입력</span>`:diff>=0.5?`<span class="badge b-ok">▲ ${diff.toFixed(1)}등급 향상</span>`:diff>0?`<span class="badge b-prog">▲ ${diff.toFixed(1)}등급</span>`:`<span class="badge b-warn">▼ ${Math.abs(diff).toFixed(1)}등급</span>`;
+    const gradeHtml=gradeMode
+      ?`<span style="font-size:12px;color:#64748b;margin-left:auto">1차 <strong style="color:#1e293b">${s.before||'—'}</strong> → 2차 <strong style="color:#1e293b">${s.after||'—'}</strong></span>`
+      :`<span style="font-size:12px;color:#94a3b8;margin-left:auto">🔒 등급 잠김</span>`;
+    subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;flex-wrap:wrap">
+      <span style="font-weight:600;min-width:48px">${s.name}</span>${badge}${gradeHtml}</div>`;
+  });
+
+  const logsEl=document.getElementById('personSaveLogs');
+  logsEl.innerHTML='';
+  Array.from({length:5},(_,i)=>i+1).forEach(w=>{
+    const wd=personData[w];
+    const c2=wd?wd.rate>=80?'#2563eb':wd.rate>=50?'#f59e0b':'#dc2626':'#cbd5e1';
+    logsEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:5px 0;border-bottom:1px solid #f1f5f9;font-size:12px">
+      <span style="min-width:28px;color:#64748b">${w}주</span>
+      <span style="font-weight:600;color:${c2}">${wd?wd.rate+'%':'—'}</span>
+      <span style="color:#94a3b8;font-size:11px;margin-left:auto">${wd?wd.saveTs:'미제출'}</span>
+    </div>`;
+  });
+
+  document.getElementById('personCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closePersonDetail(){
+  document.getElementById('personCard').style.display='none';
+  // 피드백 버튼
+  const fbBtnWrap = document.getElementById('feedbackBtnWrap');
+  if(fbBtnWrap) fbBtnWrap.remove();
+  const btnWrap = document.createElement('div');
+  btnWrap.id='feedbackBtnWrap';
+  btnWrap.style.cssText='margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9';
+  btnWrap.innerHTML=`<button onclick="openFeedbackModal(allData.find(t=>t.code==='${team.code}')||{code:'${team.code}',name:'${team.name}'})"
+    style="width:100%;padding:10px;background:#1e3a6b;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+    📝 이 팀에 피드백 작성하기
+  </button>`;
+  document.getElementById('detailCard').appendChild(btnWrap);
+
+  document.getElementById('detailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function showDetail(team){
+  selectedTeam=team.code;renderTeamGrid();
+  const wd=team.weeks[currentWeek];
+  document.getElementById('detailCard').style.display='block';
+  document.getElementById('personCard').style.display='none';
+  document.getElementById('detailTitle').textContent=`${team.name} 상세 현황 (${currentWeek}주차)`;
+
+  const membersEl=document.getElementById('detailMembers');
+  membersEl.innerHTML='';
+  const memberNames=[...(team.members||new Set())];
+  if(!memberNames.length){membersEl.innerHTML=`<div class="no-data-msg">팀원 정보 없음</div>`;}
+  else memberNames.forEach((name,mi)=>{
+    const col=COLORS[mi%COLORS.length];
+    const pData=getPersonData(team.code,name);
+    const pRate=pData[currentWeek]?pData[currentWeek].rate:(wd?wd.rate:0);
+    const row=document.createElement('div');
+    row.className='member-row';row.style.cursor='pointer';
+    row.onmouseenter=()=>row.style.background='#f8fafc';
+    row.onmouseleave=()=>row.style.background='';
+    row.innerHTML=`<div class="m-avatar" style="background:${col}22;color:${col}">${(name||'?')[0]}</div>
+      <div class="m-info">
+        <div class="m-name" style="color:#2563eb;text-decoration:underline;text-underline-offset:2px">${name}</div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${pRate}%;background:${col}"></div></div>
+      </div>
+      <div class="m-pct" style="color:${col}">${pRate}%</div>
+      <span style="font-size:11px;color:#94a3b8;margin-left:4px">›</span>`;
+    row.onclick=()=>showPersonDetail(team,name,mi);
+    membersEl.appendChild(row);
+  });
+
+  // 성취 리워드 표시
+  const rewardEl=document.getElementById('detailReward');
+  if(rewardEl){
+    const reward=team.achieveReward||(wd&&wd.achieveReward)||'';
+    rewardEl.style.display=reward?'block':'none';
+    rewardEl.innerHTML=reward?`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="font-size:16px">🎁</span><div><div style="font-size:11px;color:#92400e;font-weight:600;margin-bottom:1px">성취 리워드 목표</div><div style="color:#1e293b">${reward}</div></div></div>`:'';
+  }
+
+  const goalsEl=document.getElementById('detailGoals');
+  goalsEl.innerHTML='';
+  if(!wd) goalsEl.innerHTML=`<div class="no-data-msg">팀 목표 없음</div>`;
+  else{
+    const tgoals=[wd.teamGoal1,wd.teamGoal2,wd.teamGoal3,wd.teamGoal4,wd.teamGoal5].filter(Boolean);
+    if(!tgoals.length) goalsEl.innerHTML=`<div class="no-data-msg">팀 목표 없음</div>`;
+    else tgoals.forEach(g=>{
+      goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#2563eb">•</span><span>${g}</span></div>`;
+    });
+  }
+
+  const subjEl=document.getElementById('detailSubjects');
+  subjEl.innerHTML='';
+  const subjs=team.subjects[currentWeek]||[];
+  if(!subjs.length) subjEl.innerHTML=`<div class="no-data-msg">과목 데이터 없음</div>`;
+  else subjs.forEach(s=>{
+    const diff=parseFloat(s.diff)||0;
+    const badge=!s.diff?`<span class="badge b-no">미입력</span>`:diff>=0.5?`<span class="badge b-ok">▲ ${diff.toFixed(1)}등급 향상</span>`:diff>0?`<span class="badge b-prog">▲ ${diff.toFixed(1)}등급</span>`:`<span class="badge b-warn">▼ ${Math.abs(diff).toFixed(1)}등급</span>`;
+    subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="font-weight:600;min-width:48px">${s.name}</span>${badge}</div>`;
+  });
+
+  document.getElementById('detailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+
+function closeDetail(){selectedTeam=null;document.getElementById('detailCard').style.display='none';document.getElementById('personCard').style.display='none';renderTeamGrid();}
+
+function renderTrend(){
+  if(trendChartRef) trendChartRef.destroy();
+  const labels=['1주','2주','3주','4주','5주'];
+  const avgByWeek=labels.map((_,wi)=>{
+    const rates=allData.filter(t=>t.weeks[wi+1]).map(t=>t.weeks[wi+1].rate);
+    return rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):null;
+  });
+  trendChartRef=new Chart(document.getElementById('trendChart'),{
+    type:'line',
+    data:{labels,datasets:[{label:'전체 평균',data:avgByWeek,borderColor:'#2563eb',backgroundColor:'rgba(37,99,235,0.07)',tension:0.3,fill:true,pointRadius:5,pointBackgroundColor:'#2563eb',spanGaps:false}]},
+    options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},
+      scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},x:{ticks:{font:{size:11}},grid:{display:false}}}}
+  });
+}
+
+function renderAlerts(){
+  const el=document.getElementById('alertList');el.innerHTML='';
+  const alerts=[];
+  // 미제출
+  Object.entries(TEAM_MAP).forEach(([code,name])=>{
+    const team=allData.find(t=>t.code===code);
+    if(!team||!team.weeks[currentWeek]) alerts.push({type:'warn',msg:`${name} — 이번 주 미제출`});
+    else if(team.weeks[currentWeek].rate<50) alerts.push({type:'danger',msg:`${name} — 달성률 ${team.weeks[currentWeek].rate}% (주의 필요)`});
+  });
+  // 2주 연속 미제출
+  if(currentWeek>=2){
+    Object.entries(TEAM_MAP).forEach(([code,name])=>{
+      const team=allData.find(t=>t.code===code);
+      if((!team||!team.weeks[currentWeek-1])&&(!team||!team.weeks[currentWeek]))
+        alerts.push({type:'danger',msg:`${name} — 2주 연속 미제출`});
+    });
+  }
+  if(!alerts.length){el.innerHTML=`<div style="font-size:13px;color:#64748b;padding:8px 0">이번 주 주의사항이 없어요. 👍</div>`;return;}
+  alerts.slice(0,10).forEach(a=>{
+    el.innerHTML+=`<div class="alert-row">
+      <div class="alert-dot" style="background:${a.type==='danger'?'#dc2626':'#f59e0b'}"></div>
+      <span>${a.msg}</span>
+    </div>`;
+  });
+  if(alerts.length>10) el.innerHTML+=`<div style="font-size:12px;color:#94a3b8;padding:8px 0">외 ${alerts.length-10}건...</div>`;
+}
+
+function renderAll(){
+  buildWeekTabs();renderMetrics();renderTeamGrid();renderTrend();renderAlerts();
+}
+function render(){renderAll();}
+
+// 자동 새로고침 5분마다
+setInterval(loadData, 5*60*1000);
+
+// 시작
+buildWeekTabs();
+loadData();
+</script>
+</body>
+</html>
