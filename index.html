@@ -953,6 +953,10 @@ function renderGoalList(goals,listId,isTeam){
             // 증빙 첨부 성공 시 자동 체크
             arr[idx].checked=true;
             if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
+            saveLocal();
+            renderGoalList(wd().personalGoals,'personalGoalList',false);
+            setSyncBadge('ing','달성률 저장 중...');
+            await sendWeeklyToSheets();
             setSyncBadge('ok','사진 업로드 완료');
           } else {
             // Drive 실패 시 로컬로 폴백
