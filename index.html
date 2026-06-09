@@ -380,8 +380,12 @@ async function loadTeamShared(){
       // 팀 목표 (입력 중이 아닐 때만 덮어씀)
       if(!isEditingTeamGoal){
         try{
+          const savedWeek=parseInt(d['주차'])||0;
           const tg=JSON.parse(d['팀목표JSON']||'[]');
-          if(tg.length){
+          // 저장된 주차와 현재 주차가 다르면 팀 목표 초기화
+          if(savedWeek && savedWeek!==currentWeek){
+            teamShared.teamGoals=[];
+          } else if(tg.length){
             // files 배열 복원 - 기존 files와 병합 (Drive URL 보존)
             teamShared.teamGoals=tg.map((g,gi)=>{
               const existing=teamShared.teamGoals[gi];
@@ -473,6 +477,7 @@ async function saveTeamConfig(){
     teamCode:myTeamCode,
     teamName:TEAM_MAP[myTeamCode]||myTeamCode,
     members:JSON.stringify(teamConfig.members),
+    week:currentWeek,
     // files 포함해서 저장 (Drive URL 보존)
     teamGoalJSON:JSON.stringify(tgoals.map(g=>({
       text:g.text||'',
