@@ -438,7 +438,7 @@ async function loadAllMemberData(){
             fileName:r[`목표${i}파일명`]||'',
           });
         }
-        allMemberData[name][week]={
+        const d={
           rate:parseFloat(r['달성률'])||0,
           goals,
           saveTs:r['저장시각']||'',
@@ -449,7 +449,8 @@ async function loadAllMemberData(){
           subject3Name:r['과목3명']||'',
           subject3Diff:r['과목3향상']||'',
         };
-        // 기기 변경 시 복원: 내 데이터를 myWeeks에 반영 (로컬이 비어있을 때만)
+        allMemberData[name][week]=d;
+        // 기기 변경 시 복원: 내 데이터를 myWeeks에 반영
         if(name===myName && goals.length>0){
           // Sheets 저장시각 vs 로컬 저장시각 비교 → 더 최신인 걸 사용
           const sheetsTs=d.saveTs||'';
