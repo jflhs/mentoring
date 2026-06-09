@@ -318,6 +318,7 @@ let teamShared={achieveReward:'',
   teamGoals:[],      // 팀 목표 (내용+체크+파일명)
   achieveReward:'',
 };
+let teamGoalsByWeek={};
 
 // myWeeks: 내 개인 데이터 (로컬)
 let myWeeks=Array.from({length:5},(_,i)=>({
@@ -380,14 +381,19 @@ async function loadTeamShared(){
       // 팀 목표 (입력 중이 아닐 때만 덮어씀)
       if(!isEditingTeamGoal){
         try{
-          const savedWeek=parseInt(d['주차'])||0;
-          const tg=JSON.parse(d['팀목표JSON']||'[]');
-          // 저장된 주차와 현재 주차가 다르면 팀 목표 초기화
-          if(savedWeek && savedWeek!==currentWeek){
-            teamShared.teamGoals=[];
-          } else if(tg.length){
+          // teamGoalJSON: {week,goals} 신형 또는 [] 구형 모두 지원
+          let tgWeek=0,tgList=[];
+          try{
+            const parsed=JSON.parse(d['팀목표JSON']||'[]');
+            if(Array.isArray(parsed)){tgWeek=0;tgList=parsed;}
+            else if(parsed&&parsed.goals){tgWeek=parseInt(parsed.week)||0;tgList=parsed.goals||[];}
+          }catch(e){}
+          if(tgWeek && tgWeek!==currentWeek){
+            if(tgList.length) teamGoalsByWeek[tgWeek]=tgList;
+            teamShared.teamGoals=teamGoalsByWeek[currentWeek]||[];
+          } else if(tgList.length){
             // files 배열 복원 - 기존 files와 병합 (Drive URL 보존)
-            teamShared.teamGoals=tg.map((g,gi)=>{
+            const _restored=tgList.map((g,gi)=>{
               const existing=teamShared.teamGoals[gi];
               // Sheets에 files 있으면 사용, 없으면 기존 files 유지
               const restoredFiles=(g.files&&g.files.length>0)
@@ -400,6 +406,9 @@ async function loadTeamShared(){
                 files:restoredFiles,
               };
             });
+            const _loadedWeek=tgWeek||currentWeek;
+            teamGoalsByWeek[_loadedWeek]=_restored;
+            if(_loadedWeek===currentWeek) teamShared.teamGoals=_restored;
           }
         }
         catch(e){
@@ -491,12 +500,8 @@ async function saveTeamConfig(){
     members:JSON.stringify(teamConfig.members),
     week:currentWeek,
     // files 포함해서 저장 (Drive URL 보존)
-    teamGoalJSON:JSON.stringify(tgoals.map(g=>({
-      text:g.text||'',
-      checked:g.checked||false,
-      checkTs:g.checkTs||'',
-      files:(g.files||[]).map(f=>({name:f.name,url:f.url,isImg:f.isImg})),
-    }))),
+    teamGoalJSON:JSON.stringify({week:currentWeek,goals:tgoals.map(g=>({text:g.text||'',checked:g.checked||false,checkTs:g.checkTs||'',files:(g.files||[]).map(f=>({name:f.name,url:f.url,isImg:f.isImg}))}))}),
+    
     teamGoal1:tgoals[0]?tgoals[0].text:'',
     teamGoal2:tgoals[1]?tgoals[1].text:'',
     teamGoal3:tgoals[2]?tgoals[2].text:'',
@@ -699,7 +704,7 @@ function buildWeekTabs(){
     b.className='wtab'+(i===currentWeek?' active':'');
     b.textContent=i+'주'+(locked?' 🔒':'');
     b.title=locked?`${i}주차는 마감되었습니다`:'';
-    b.onclick=()=>{currentWeek=i;render();};
+    b.onclick=()=>{currentWeek=i;teamShared.teamGoals=teamGoalsByWeek[i]||[];render();};
     el.appendChild(b);
   }
 }
