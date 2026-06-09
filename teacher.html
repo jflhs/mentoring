@@ -402,7 +402,6 @@ function processData(rows){
         incentive:row['성취리워드']||'',
         memberCount:parseInt(row['팀원수'])||0,
       };
-    }
     // 과목 향상도 (팀 과목 2개 기준 - 팀원 평균)
     if(row['과목1명']||row['과목2명']){
       if(!teams[code].subjectDiffs) teams[code].subjectDiffs={};
