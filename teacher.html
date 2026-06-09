@@ -226,12 +226,8 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 </div>
 
 <script>
-
-
-
 // ── 공지사항 ──
 async function openNoticeModal(){
-  // 현재 공지사항 불러오기
   try{
     const res=await fetch(`${SHEETS_URL}?type=notice&t=${Date.now()}`);
     const json=await res.json();
@@ -243,70 +239,53 @@ async function openNoticeModal(){
   document.getElementById('noticeModal').style.display='flex';
   setTimeout(()=>document.getElementById('noticeTextarea').focus(),100);
 }
-
 function closeNoticeModal(){
   document.getElementById('noticeModal').style.display='none';
   document.getElementById('noticeSendMsg').style.display='none';
 }
-
 async function submitNotice(){
   const content=document.getElementById('noticeTextarea').value.trim();
   const teacherName=document.getElementById('noticeTeacherInp').value.trim()||'선생님';
-  if(!content){
-    document.getElementById('noticeSendMsg').style.display='block';
-    document.getElementById('noticeSendMsg').style.color='#dc2626';
-    document.getElementById('noticeSendMsg').textContent='공지사항 내용을 입력해주세요.';
-    return;
-  }
+  const msgEl=document.getElementById('noticeSendMsg');
+  if(!content){msgEl.style.display='block';msgEl.style.color='#dc2626';msgEl.textContent='공지사항 내용을 입력해주세요.';return;}
   const btn=document.querySelector('#noticeModal button:last-of-type');
   btn.textContent='게시 중...';btn.disabled=true;
   try{
-    await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({
-      type:'notice',
-      content,
-      teacherName,
-    })});
-    document.getElementById('noticeSendMsg').style.display='block';
-    document.getElementById('noticeSendMsg').style.color='#059669';
-    document.getElementById('noticeSendMsg').textContent='✅ 공지사항이 게시됐어요! 전체 학생 대시보드에 표시됩니다.';
+    await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({type:'notice',content,teacherName})});
+    msgEl.style.display='block';msgEl.style.color='#059669';msgEl.textContent='✅ 공지사항이 게시됐어요!';
     btn.textContent='📌 공지사항 게시';btn.disabled=false;
     setTimeout(()=>closeNoticeModal(),2000);
   }catch(e){
-    document.getElementById('noticeSendMsg').style.display='block';
-    document.getElementById('noticeSendMsg').style.color='#dc2626';
-    document.getElementById('noticeSendMsg').textContent='게시 실패. 다시 시도해주세요.';
+    msgEl.style.display='block';msgEl.style.color='#dc2626';msgEl.textContent='게시 실패. 다시 시도해주세요.';
     btn.textContent='📌 공지사항 게시';btn.disabled=false;
   }
 }
 
 // ── 피드백 ──
-let feedbackTargetTeam = null;
-
+let feedbackTargetTeam=null;
 function openFeedbackModal(team){
-  feedbackTargetTeam = team;
-  document.getElementById('feedbackModalTeam').textContent = team.name + ' · ' + (currentWeek) + '주차';
-  document.getElementById('feedbackTextarea').value = '';
-  document.getElementById('feedbackSendMsg').style.display = 'none';
-  document.getElementById('feedbackModal').style.display = 'flex';
+  feedbackTargetTeam=team;
+  document.getElementById('feedbackModalTeam').textContent=team.name+' · '+currentWeek+'주차';
+  document.getElementById('feedbackTextarea').value='';
+  document.getElementById('feedbackSendMsg').style.display='none';
+  document.getElementById('feedbackModal').style.display='flex';
   loadPrevFeedbacks(team.code);
   setTimeout(()=>document.getElementById('feedbackTextarea').focus(),100);
 }
-
 function closeFeedbackModal(){
-  document.getElementById('feedbackModal').style.display = 'none';
-  feedbackTargetTeam = null;
+  document.getElementById('feedbackModal').style.display='none';
+  feedbackTargetTeam=null;
 }
-
 async function loadPrevFeedbacks(teamCode){
-  const el = document.getElementById('prevFeedbacks');
-  el.innerHTML = '';
+  const el=document.getElementById('prevFeedbacks');
+  el.innerHTML='';
   try{
-    const res = await fetch(`${SHEETS_URL}?type=feedback&teamCode=${teamCode}&t=${Date.now()}`);
-    const json = await res.json();
+    const res=await fetch(`${SHEETS_URL}?type=feedback&teamCode=${teamCode}&t=${Date.now()}`);
+    const json=await res.json();
     if(json.result==='success'&&json.data&&json.data.length){
-      el.innerHTML = `<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px">이전 피드백</div>`;
+      el.innerHTML=`<div style="font-size:11px;font-weight:600;color:#64748b;margin-bottom:6px">이전 피드백</div>`;
       json.data.slice(0,3).forEach(fb=>{
-        el.innerHTML += `<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px">
+        el.innerHTML+=`<div style="background:#f8fafc;border-radius:8px;padding:8px 10px;margin-bottom:6px;font-size:12px">
           <div style="color:#94a3b8;margin-bottom:3px">${fb['교사명']} · ${fb['타임스탬프']}</div>
           <div style="color:#334155;line-height:1.5">${fb['피드백내용']}</div>
         </div>`;
@@ -314,42 +293,29 @@ async function loadPrevFeedbacks(teamCode){
     }
   }catch(e){}
 }
-
 async function submitFeedback(){
-  const content = document.getElementById('feedbackTextarea').value.trim();
-  const teacherName = document.getElementById('teacherNameInp').value.trim() || '선생님';
-  if(!content){
-    document.getElementById('feedbackSendMsg').style.display='block';
-    document.getElementById('feedbackSendMsg').style.color='#dc2626';
-    document.getElementById('feedbackSendMsg').textContent='피드백 내용을 입력해주세요.';
-    return;
-  }
-  const btn = document.querySelector('#feedbackModal button:last-of-type');
+  const content=document.getElementById('feedbackTextarea').value.trim();
+  const teacherName=document.getElementById('teacherNameInp').value.trim()||'선생님';
+  const msgEl=document.getElementById('feedbackSendMsg');
+  if(!content){msgEl.style.display='block';msgEl.style.color='#dc2626';msgEl.textContent='피드백 내용을 입력해주세요.';return;}
+  const btn=document.querySelector('#feedbackModal button:last-of-type');
   btn.textContent='전송 중...';btn.disabled=true;
   try{
     await fetch(SHEETS_URL,{method:'POST',body:JSON.stringify({
-      type:'feedback',
-      teamCode:feedbackTargetTeam.code,
-      teamName:feedbackTargetTeam.name,
-      week:currentWeek,
-      content,
-      teacherName,
+      type:'feedback',teamCode:feedbackTargetTeam.code,teamName:feedbackTargetTeam.name,
+      week:currentWeek,content,teacherName
     })});
-    document.getElementById('feedbackSendMsg').style.display='block';
-    document.getElementById('feedbackSendMsg').style.color='#059669';
-    document.getElementById('feedbackSendMsg').textContent='✅ 피드백이 전송됐어요! 학생 대시보드에 바로 표시됩니다.';
+    msgEl.style.display='block';msgEl.style.color='#059669';msgEl.textContent='✅ 피드백이 전송됐어요!';
     document.getElementById('feedbackTextarea').value='';
     btn.textContent='📤 피드백 전송';btn.disabled=false;
     setTimeout(()=>loadPrevFeedbacks(feedbackTargetTeam.code),500);
   }catch(e){
-    document.getElementById('feedbackSendMsg').style.display='block';
-    document.getElementById('feedbackSendMsg').style.color='#dc2626';
-    document.getElementById('feedbackSendMsg').textContent='전송 실패. 다시 시도해주세요.';
+    msgEl.style.display='block';msgEl.style.color='#dc2626';msgEl.textContent='전송 실패. 다시 시도해주세요.';
     btn.textContent='📤 피드백 전송';btn.disabled=false;
   }
 }
 
-const gradeMode = true; // 교사 대시보드는 항상 등급 표시
+const gradeMode=true;
 const SHEETS_URL='https://script.google.com/macros/s/AKfycbw5cREBxq5vEy9QOYwtjlBBOiDVSJs76Tc1IP3VXXnzUvE66sc1VJTT8m2c7i19QShw/exec';
 const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
 const TEAM_MAP={
@@ -358,7 +324,6 @@ const TEAM_MAP={
   'TEAM09':'9모둠','TEAM10':'10모둠','TEAM11':'11모둠','TEAM12':'12모둠',
   'TEAM13':'13모둠','TEAM14':'14모둠','TEAM15':'15모둠','TEAM16':'16모둠',
   'TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
-
 };
 
 let currentWeek=1;
@@ -368,43 +333,60 @@ let rawRows=[];
 let trendChartRef=null;
 let personTrendChartRef=null;
 
+// 저장시각 "6/7 19:50" → "06/07 19:50" 패딩해서 정확한 비교
+function padTs(ts){
+  if(!ts) return '';
+  try{
+    const s=String(ts).trim();
+    const parts=s.split(' ');
+    if(parts.length<2) return s;
+    const md=parts[0].split('/');
+    if(md.length<2) return s;
+    return md[0].padStart(2,'0')+'/'+md[1].padStart(2,'0')+' '+parts[1];
+  }catch(e){return String(ts);}
+}
+
 // Sheets 데이터 → 팀별 집계
 function processData(rows){
   const teams={};
-  // 먼저 팀원별 달성률 수집
-  const memberRates={}; // {teamCode: {week: {memberName: rate}}}
+  const memberRates={};
 
   rows.forEach(row=>{
     const code=row['팀코드'];
+    if(!code) return;
     const name=row['팀명']||TEAM_MAP[code]||code;
     const week=parseInt(row['주차'])||1;
     const rate=parseFloat(row['달성률'])||0;
     const saveTs=row['저장시각']||'';
     const memberName=row['팀원이름']||'';
-    if(!code) return;
-    if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),goals:{},subjects:{},subjectDiffs:{},achieveReward:''};
+
+    if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),subjects:{},subjectDiffs:{},achieveReward:''};
     teams[code].members.add(memberName);
 
-    // 팀원별 달성률 저장 (행 순서 기준 마지막 행 = 최신)
+    // 팀원별 달성률: 저장시각 기준 최신만 유지
     if(!memberRates[code]) memberRates[code]={};
     if(!memberRates[code][week]) memberRates[code][week]={};
-    // 항상 덮어쓰기 (Sheets는 위에서 아래로 시간순 정렬됨)
-    memberRates[code][week][memberName]={rate,saveTs};
+    const existTs=memberRates[code][week][memberName]?padTs(memberRates[code][week][memberName].saveTs):'';
+    if(!memberRates[code][week][memberName]||padTs(saveTs)>=existTs){
+      memberRates[code][week][memberName]={rate,saveTs};
+    }
 
-    // 팀 주차 데이터 (팀 목표 등 메타데이터만)
-    // 항상 덮어쓰기 (마지막 행이 최신)
-    teams[code].weeks[week]={
-        rate:0, // 나중에 팀원 평균으로 계산
+    // 팀 주차 메타데이터: 저장시각 기준 최신만 유지
+    const existWeekTs=teams[code].weeks[week]?padTs(teams[code].weeks[week].saveTs):'';
+    if(!teams[code].weeks[week]||padTs(saveTs)>=existWeekTs){
+      teams[code].weeks[week]={
+        rate:0,
         saveTs,
-        goal1:row['목표1']||'',goal2:row['목표2']||'',
-        goal3:row['목표3']||'',goal4:row['목표4']||'',
         teamGoal1:row['팀목표1']||'',teamGoal2:row['팀목표2']||'',
+        teamGoal3:row['팀목표3']||'',teamGoal4:row['팀목표4']||'',
+        teamGoal5:row['팀목표5']||'',
         incentive:row['성취리워드']||'',
         memberCount:parseInt(row['팀원수'])||0,
       };
-    // 과목 향상도 (팀 과목 2개 기준 - 팀원 평균)
+    }
+
+    // 과목 향상도
     if(row['과목1명']||row['과목2명']){
-      if(!teams[code].subjectDiffs) teams[code].subjectDiffs={};
       if(!teams[code].subjectDiffs[week]) teams[code].subjectDiffs[week]={};
       ['1','2','3'].forEach(n=>{
         const nm=row[`과목${n}명`]||'';
@@ -414,24 +396,19 @@ function processData(rows){
           if(df) teams[code].subjectDiffs[week][nm].push(df);
         }
       });
-      // subjects 배열로 변환 (팀원 평균)
       teams[code].subjects[week]=Object.entries(teams[code].subjectDiffs[week])
-        .filter(([name,diffs])=>diffs.length>0)
-        .map(([name,diffs])=>({
-          name, diff:(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1)
-        }));
+        .filter(([,diffs])=>diffs.length>0)
+        .map(([nm,diffs])=>({name:nm,diff:(diffs.reduce((a,b)=>a+b,0)/diffs.length).toFixed(1)}));
     }
   });
+
   // 팀원 평균 달성률 계산
   Object.keys(teams).forEach(code=>{
-    const team=teams[code];
-    Object.keys(team.weeks).forEach(week=>{
+    Object.keys(teams[code].weeks).forEach(week=>{
       const weekRates=memberRates[code]&&memberRates[code][week];
       if(weekRates){
         const rates=Object.values(weekRates).map(m=>m.rate);
-        if(rates.length>0){
-          team.weeks[week].rate=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
-        }
+        if(rates.length>0) teams[code].weeks[week].rate=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
       }
     });
   });
@@ -439,12 +416,47 @@ function processData(rows){
   return Object.values(teams).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
 }
 
-function getWeekRate(team,week){
-  return team.weeks[week]?team.weeks[week].rate:null;
-}
+function getWeekRate(team,week){return team.weeks[week]?team.weeks[week].rate:null;}
 function getCumRate(team){
   const rates=Object.values(team.weeks).map(w=>w.rate);
   return rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):null;
+}
+
+// 개인 데이터: 저장시각 기준 주차별 최신 행만 사용
+function getPersonData(teamCode,memberName){
+  const result={};
+  rawRows.filter(r=>r['팀코드']===teamCode&&r['팀원이름']===memberName).forEach(r=>{
+    const week=parseInt(r['주차'])||1;
+    const rTs=padTs(r['저장시각']||'');
+    const curTs=result[week]?padTs(result[week].saveTs):'';
+    if(!result[week]||rTs>=curTs){
+      result[week]={
+        rate:parseFloat(r['달성률'])||0,
+        cumRate:parseFloat(r['누적달성률'])||0,
+        saveTs:r['저장시각']||'',
+        goals:(()=>{
+          const gs=[];
+          for(let i=1;i<=8;i++){
+            if(r[`목표${i}`]) gs.push({
+              text:r[`목표${i}`]||'',
+              checked:r[`목표${i}체크`]==='true'||(r[`목표${i}체크`]===true),
+              checkTs:r[`목표${i}시각`]||'',
+              fileUrls:(()=>{const v=r[`목표${i}파일URL`]||'';try{const p=JSON.parse(v);return Array.isArray(p)?p:[v].filter(Boolean);}catch(e){return v?[v]:[]}})(),
+              fileName:r[`목표${i}파일명`]||'',
+            });
+          }
+          return gs;
+        })(),
+        subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
+        subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
+        subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
+        subject2Before:r['과목21차']||'',subject2After:r['과목22차']||'',
+        subject3Name:r['과목3명']||'',subject3Diff:r['과목3향상']||'',
+        subject3Before:r['과목31차']||'',subject3After:r['과목32차']||'',
+      };
+    }
+  });
+  return result;
 }
 
 async function loadData(){
@@ -462,7 +474,13 @@ async function loadData(){
 
 function buildWeekTabs(){
   const el=document.getElementById('weekTabs');el.innerHTML='';
-  for(let i=1;i<=5;i++){const b=document.createElement('button');b.className='wtab'+(i===currentWeek?' active':'');b.textContent=i+'주';b.onclick=()=>{currentWeek=i;renderAll();};el.appendChild(b);}
+  for(let i=1;i<=5;i++){
+    const b=document.createElement('button');
+    b.className='wtab'+(i===currentWeek?' active':'');
+    b.textContent=i+'주';
+    b.onclick=()=>{currentWeek=i;renderAll();};
+    el.appendChild(b);
+  }
 }
 
 function renderMetrics(){
@@ -471,10 +489,8 @@ function renderMetrics(){
   const avg=rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):0;
   const ok=submitted.filter(t=>{
     if(t.weeks[currentWeek].rate<80) return false;
-    // 팀 과목 2개 향상도 확인
     const subjs=(t.subjects&&t.subjects[currentWeek])||[];
-    if(subjs.length<2) return false;
-    return subjs.slice(0,2).every(s=>parseFloat(s.diff||0)>=0.5);
+    return subjs.length>=2&&subjs.slice(0,2).every(s=>parseFloat(s.diff||0)>=0.5);
   }).length;
   const warn=allData.length-submitted.filter(t=>t.weeks[currentWeek].rate>=50).length;
   document.getElementById('totalTeams').textContent=submitted.length+'개';
@@ -488,21 +504,16 @@ function renderTeamGrid(){
   const sort=document.getElementById('sortSel').value;
   const filter=document.getElementById('filterSel').value;
   let teams=[...allData];
-
-  // 미제출 팀도 포함 (TEAM_MAP 기준)
   const existCodes=new Set(teams.map(t=>t.code));
   Object.entries(TEAM_MAP).forEach(([code,name])=>{
     if(!existCodes.has(code)) teams.push({code,name,weeks:{},members:new Set(),subjects:{},subjectDiffs:{},achieveReward:''});
   });
-
   if(filter==='ok') teams=teams.filter(t=>t.weeks[currentWeek]&&t.weeks[currentWeek].rate>=80);
   else if(filter==='warn') teams=teams.filter(t=>!t.weeks[currentWeek]||t.weeks[currentWeek].rate<50);
   else if(filter==='no') teams=teams.filter(t=>!t.weeks[currentWeek]);
-
   if(sort==='rate') teams.sort((a,b)=>(getWeekRate(b,currentWeek)||0)-(getWeekRate(a,currentWeek)||0));
   else if(sort==='name') teams.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
   else if(sort==='warn') teams.sort((a,b)=>(getWeekRate(a,currentWeek)||0)-(getWeekRate(b,currentWeek)||0));
-
   const wrap=document.getElementById('teamGridWrap');
   if(!teams.length){wrap.innerHTML=`<div class="no-data-msg">조건에 맞는 모둠이 없어요.</div>`;return;}
   const grid=document.createElement('div');grid.className='team-grid';
@@ -514,9 +525,8 @@ function renderTeamGrid(){
     const col=rate===null?'#cbd5e1':rate>=80?'#2563eb':rate>=50?'#f59e0b':'#dc2626';
     const badgeHtml=rate===null?`<span class="badge b-no">미제출</span>`:rate>=80?`<span class="badge b-ok">✅ 달성</span>`:rate>=50?`<span class="badge b-prog">진행중</span>`:`<span class="badge b-warn">⚠️ 주의</span>`;
     const extraClass=rate!==null&&rate>=80?' ok':rate!==null&&rate<50?' warn':!submitted?' no-data':'';
-    const isSelected=selectedTeam===team.code;
     const card=document.createElement('div');
-    card.className=`team-card${extraClass}${isSelected?' selected':''}`;
+    card.className=`team-card${extraClass}${selectedTeam===team.code?' selected':''}`;
     card.innerHTML=`<div class="tc-name">${team.name}</div>
       <div class="tc-rate" style="color:${col}">${rate!==null?rate+'%':'—'}</div>
       <div class="tc-bar"><div class="tc-fill" style="width:${rate||0}%;background:${col}"></div></div>
@@ -529,70 +539,19 @@ function renderTeamGrid(){
   wrap.innerHTML='';wrap.appendChild(grid);
 }
 
-function getPersonData(teamCode, memberName){
-  const result={};
-  rawRows.filter(r=>r['팀코드']===teamCode&&r['팀원이름']===memberName).forEach(r=>{
-    const week=parseInt(r['주차'])||1;
-    const rTsRaw=r['타임스탬프']||''; const rTs=rTsRaw?(() => { try { const d=new Date(rTsRaw); return isNaN(d)?0:d.getTime(); } catch(e){return 0;} })():0;
-    const curTs=result[week]&&result[week].ts||0;
-    if(!result[week]||rTs>curTs){
-      result[week]={
-        rate:parseFloat(r['달성률'])||0,
-        cumRate:parseFloat(r['누적달성률'])||0,
-        saveTs:r['저장시각']||'',
-        goals:(()=>{
-          const gs=[];
-          for(let i=1;i<=8;i++){
-            if(r[`목표${i}`]) gs.push({
-              text:r[`목표${i}`]||'',
-              checked:r[`목표${i}체크`]==='true',
-              checkTs:r[`목표${i}시각`]||'',
-              fileUrl:r[`목표${i}파일URL`]||'',
-              fileName:r[`목표${i}파일명`]||'',
-            });
-          }
-          return gs;
-        })(),
-        subject1Name:r['과목1명']||'',
-        subject1Diff:r['과목1향상']||'',
-        subject1Before:r['과목11차']||'',
-        subject1After:r['과목12차']||'',
-        subject2Name:r['과목2명']||'',
-        subject2Diff:r['과목2향상']||'',
-        subject2Before:r['과목21차']||'',
-        subject2After:r['과목22차']||'',
-        subject3Name:r['과목3명']||'',
-        subject3Diff:r['과목3향상']||'',
-        subject3Before:r['과목31차']||'',
-        subject3After:r['과목32차']||'',
-        subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
-        subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
-        subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
-        subject2Before:r['과목21차']||'',subject2After:r['과목22차']||'',
-        subject3Name:r['과목3명']||'',subject3Diff:r['과목3향상']||'',
-        subject3Before:r['과목31차']||'',subject3After:r['과목32차']||'',
-      };
-    }
-  });
-  return result;
-}
-
-function showPersonDetail(team, memberName, memberIdx){
+function showPersonDetail(team,memberName,memberIdx){
   const col=COLORS[memberIdx%COLORS.length];
-  const personData=getPersonData(team.code, memberName);
+  const personData=getPersonData(team.code,memberName);
   const thisWeek=personData[currentWeek];
   const allRates=Array.from({length:5},(_,i)=>personData[i+1]?personData[i+1].rate:null);
   const filled=allRates.filter(r=>r!==null);
   const cumAvg=filled.length?Math.round(filled.reduce((a,b)=>a+b,0)/filled.length):0;
-
   document.getElementById('personCard').style.display='block';
   document.getElementById('personTitle').innerHTML=`<span style="color:${col};font-weight:700">${memberName}</span> · ${team.name}`;
-
   document.getElementById('personMetrics').innerHTML=`
     <div class="metric"><div class="lbl">이번 주 달성률</div><div class="val" style="color:${col}">${thisWeek?thisWeek.rate+'%':'—'}</div></div>
     <div class="metric"><div class="lbl">5주 누적 달성률</div><div class="val">${cumAvg?cumAvg+'%':'—'}</div></div>
     <div class="metric"><div class="lbl">제출 주차</div><div class="val">${filled.length}주</div><div class="sub">/ 5주</div></div>`;
-
   if(personTrendChartRef) personTrendChartRef.destroy();
   personTrendChartRef=new Chart(document.getElementById('personTrendChart'),{
     type:'line',
@@ -604,40 +563,22 @@ function showPersonDetail(team, memberName, memberIdx){
       scales:{y:{min:0,max:100,ticks:{callback:v=>v+'%',font:{size:11}},grid:{color:'rgba(0,0,0,0.04)'}},
               x:{ticks:{font:{size:11}},grid:{display:false}}}}
   });
-
   const goalsEl=document.getElementById('personGoals');
   goalsEl.innerHTML='';
   if(!thisWeek||!thisWeek.goals.length) goalsEl.innerHTML=`<div class="no-data-msg">이번 주 목표 없음</div>`;
-  else thisWeek.goals.forEach((g,i)=>{
-    const goalText = typeof g === 'object' ? g.text : g;
-    const goalChecked = typeof g === 'object' ? g.checked : false;
-    const goalTs = typeof g === 'object' ? g.checkTs : '';
-    const goalFileUrl = typeof g === 'object' ? g.fileUrl : '';
-    const goalFileName = typeof g === 'object' ? g.fileName : '';
-    const checkIcon = goalChecked
-      ? `<span style="color:#059669;font-size:13px;flex-shrink:0">✅</span>`
-      : `<span style="color:#cbd5e1;font-size:13px;flex-shrink:0">○</span>`;
-    const imgHtml = goalFileUrl
-      ? `<div style="margin-top:5px;padding-left:20px">
-          <img src="${goalFileUrl}" alt="증빙자료"
-            style="width:80px;height:80px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer"
-            onclick="window.open('${goalFileUrl}','_blank')"
-            title="클릭하면 크게 볼 수 있어요">
-        </div>`
-      : (goalFileName ? `<div style="margin-top:3px;padding-left:20px;font-size:11px;color:#94a3b8">📎 ${goalFileName}</div>` : '');
+  else thisWeek.goals.forEach(g=>{
+    const checkIcon=g.checked?`<span style="color:#059669;font-size:13px;flex-shrink:0">✅</span>`:`<span style="color:#cbd5e1;font-size:13px;flex-shrink:0">○</span>`;
+    const _urls=g.fileUrls&&g.fileUrls.length?g.fileUrls:[g.fileUrl].filter(Boolean);
+    const imgHtml=_urls.length?`<div style="margin-top:5px;padding-left:20px;display:flex;gap:6px;flex-wrap:wrap">${_urls.map(u=>`<img src="${u}" alt="증빙" style="width:72px;height:72px;object-fit:cover;border-radius:8px;border:1px solid #e2e8f0;cursor:pointer" onclick="window.open('${u}','_blank')" title="클릭하면 크게 볼 수 있어요">`).join('')}</div>`:(g.fileName?`<div style="margin-top:3px;padding-left:20px;font-size:11px;color:#94a3b8">📎 ${g.fileName}</div>`:'');
     goalsEl.innerHTML+=`<div class="goal-item" style="flex-direction:column;align-items:flex-start;gap:3px">
       <div style="display:flex;align-items:center;gap:6px">
         ${checkIcon}
-        <span style="color:${goalChecked?'#1e293b':'#64748b'};font-size:13px">${goalText}</span>
-        ${goalTs?`<span style="font-size:10px;color:#94a3b8">${goalTs}</span>`:''}
-      </div>
-      ${imgHtml}
-    </div>`;
+        <span style="color:${g.checked?'#1e293b':'#64748b'};font-size:13px">${g.text}</span>
+        ${g.checkTs?`<span style="font-size:10px;color:#94a3b8">${g.checkTs}</span>`:''}
+      </div>${imgHtml}</div>`;
   });
-
   const subjEl=document.getElementById('personSubjects');
   subjEl.innerHTML='';
-  // 현재 주차 없으면 다른 주차에서 과목명 찾기
   const anyWeekData=Object.values(personData).find(w=>w.subject1Name||w.subject2Name);
   const subjs=(thisWeek||anyWeekData)?[
     {name:(thisWeek||anyWeekData).subject1Name,diff:(thisWeek||anyWeekData).subject1Diff,before:(thisWeek||anyWeekData).subject1Before,after:(thisWeek||anyWeekData).subject1After},
@@ -648,13 +589,9 @@ function showPersonDetail(team, memberName, memberIdx){
   else subjs.forEach(s=>{
     const diff=parseFloat(s.diff)||0;
     const badge=!s.diff?`<span class="badge b-no">미입력</span>`:diff>=0.5?`<span class="badge b-ok">▲ ${diff.toFixed(1)}등급 향상</span>`:diff>0?`<span class="badge b-prog">▲ ${diff.toFixed(1)}등급</span>`:`<span class="badge b-warn">▼ ${Math.abs(diff).toFixed(1)}등급</span>`;
-    const gradeHtml=gradeMode
-      ?`<span style="font-size:12px;color:#64748b;margin-left:auto">1차 <strong style="color:#1e293b">${s.before||'—'}</strong> → 2차 <strong style="color:#1e293b">${s.after||'—'}</strong></span>`
-      :`<span style="font-size:12px;color:#94a3b8;margin-left:auto">🔒 등급 잠김</span>`;
-    subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;flex-wrap:wrap">
-      <span style="font-weight:600;min-width:48px">${s.name}</span>${badge}${gradeHtml}</div>`;
+    const gradeHtml=`<span style="font-size:12px;color:#64748b;margin-left:auto">1차 <strong style="color:#1e293b">${s.before||'—'}</strong> → 2차 <strong style="color:#1e293b">${s.after||'—'}</strong></span>`;
+    subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:7px 0;border-bottom:1px solid #f1f5f9;font-size:13px;flex-wrap:wrap"><span style="font-weight:600;min-width:48px">${s.name}</span>${badge}${gradeHtml}</div>`;
   });
-
   const logsEl=document.getElementById('personSaveLogs');
   logsEl.innerHTML='';
   Array.from({length:5},(_,i)=>i+1).forEach(w=>{
@@ -666,24 +603,11 @@ function showPersonDetail(team, memberName, memberIdx){
       <span style="color:#94a3b8;font-size:11px;margin-left:auto">${wd?wd.saveTs:'미제출'}</span>
     </div>`;
   });
-
   document.getElementById('personCard').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
 function closePersonDetail(){
   document.getElementById('personCard').style.display='none';
-  // 피드백 버튼
-  const fbBtnWrap = document.getElementById('feedbackBtnWrap');
-  if(fbBtnWrap) fbBtnWrap.remove();
-  const btnWrap = document.createElement('div');
-  btnWrap.id='feedbackBtnWrap';
-  btnWrap.style.cssText='margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9';
-  btnWrap.innerHTML=`<button onclick="openFeedbackModal(allData.find(t=>t.code==='${team.code}')||{code:'${team.code}',name:'${team.name}'})"
-    style="width:100%;padding:10px;background:#1e3a6b;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
-    📝 이 팀에 피드백 작성하기
-  </button>`;
-  document.getElementById('detailCard').appendChild(btnWrap);
-
   document.getElementById('detailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
@@ -693,7 +617,6 @@ function showDetail(team){
   document.getElementById('detailCard').style.display='block';
   document.getElementById('personCard').style.display='none';
   document.getElementById('detailTitle').textContent=`${team.name} 상세 현황 (${currentWeek}주차)`;
-
   const membersEl=document.getElementById('detailMembers');
   membersEl.innerHTML='';
   const memberNames=[...(team.members||new Set())];
@@ -701,7 +624,7 @@ function showDetail(team){
   else memberNames.forEach((name,mi)=>{
     const col=COLORS[mi%COLORS.length];
     const pData=getPersonData(team.code,name);
-    const pRate=pData[currentWeek]?pData[currentWeek].rate:(wd?wd.rate:0);
+    const pRate=pData[currentWeek]?pData[currentWeek].rate:null;
     const row=document.createElement('div');
     row.className='member-row';row.style.cursor='pointer';
     row.onmouseenter=()=>row.style.background='#f8fafc';
@@ -709,47 +632,54 @@ function showDetail(team){
     row.innerHTML=`<div class="m-avatar" style="background:${col}22;color:${col}">${(name||'?')[0]}</div>
       <div class="m-info">
         <div class="m-name" style="color:#2563eb;text-decoration:underline;text-underline-offset:2px">${name}</div>
-        <div class="m-bar"><div class="m-bar-fill" style="width:${pRate}%;background:${col}"></div></div>
+        <div class="m-bar"><div class="m-bar-fill" style="width:${pRate||0}%;background:${col}"></div></div>
       </div>
-      <div class="m-pct" style="color:${col}">${pRate}%</div>
+      <div class="m-pct" style="color:${col}">${pRate!==null?pRate+'%':'미제출'}</div>
       <span style="font-size:11px;color:#94a3b8;margin-left:4px">›</span>`;
     row.onclick=()=>showPersonDetail(team,name,mi);
     membersEl.appendChild(row);
   });
-
-  // 성취 리워드 표시
   const rewardEl=document.getElementById('detailReward');
   if(rewardEl){
-    const reward=team.achieveReward||(wd&&wd.achieveReward)||'';
+    const reward=team.achieveReward||(wd&&wd.incentive)||'';
     rewardEl.style.display=reward?'block':'none';
     rewardEl.innerHTML=reward?`<div style="display:flex;align-items:center;gap:8px;font-size:13px"><span style="font-size:16px">🎁</span><div><div style="font-size:11px;color:#92400e;font-weight:600;margin-bottom:1px">성취 리워드 목표</div><div style="color:#1e293b">${reward}</div></div></div>`:'';
   }
-
   const goalsEl=document.getElementById('detailGoals');
   goalsEl.innerHTML='';
   if(!wd) goalsEl.innerHTML=`<div class="no-data-msg">팀 목표 없음</div>`;
   else{
     const tgoals=[wd.teamGoal1,wd.teamGoal2,wd.teamGoal3,wd.teamGoal4,wd.teamGoal5].filter(Boolean);
     if(!tgoals.length) goalsEl.innerHTML=`<div class="no-data-msg">팀 목표 없음</div>`;
-    else tgoals.forEach(g=>{
-      goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#2563eb">•</span><span>${g}</span></div>`;
-    });
+    else tgoals.forEach(g=>{goalsEl.innerHTML+=`<div class="goal-item"><span style="color:#2563eb">•</span><span>${g}</span></div>`;});
   }
-
   const subjEl=document.getElementById('detailSubjects');
   subjEl.innerHTML='';
-  const subjs=team.subjects[currentWeek]||[];
+  const subjs=(team.subjects&&team.subjects[currentWeek])||[];
   if(!subjs.length) subjEl.innerHTML=`<div class="no-data-msg">과목 데이터 없음</div>`;
   else subjs.forEach(s=>{
     const diff=parseFloat(s.diff)||0;
     const badge=!s.diff?`<span class="badge b-no">미입력</span>`:diff>=0.5?`<span class="badge b-ok">▲ ${diff.toFixed(1)}등급 향상</span>`:diff>0?`<span class="badge b-prog">▲ ${diff.toFixed(1)}등급</span>`:`<span class="badge b-warn">▼ ${Math.abs(diff).toFixed(1)}등급</span>`;
     subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="font-weight:600;min-width:48px">${s.name}</span>${badge}</div>`;
   });
-
+  // 피드백 버튼
+  let fbBtn=document.getElementById('feedbackBtnWrap');
+  if(fbBtn) fbBtn.remove();
+  fbBtn=document.createElement('div');fbBtn.id='feedbackBtnWrap';
+  fbBtn.style.cssText='margin-top:14px;padding-top:14px;border-top:1px solid #f1f5f9';
+  fbBtn.innerHTML=`<button onclick="openFeedbackModal(allData.find(t=>t.code==='${team.code}')||{code:'${team.code}',name:'${team.name}'})"
+    style="width:100%;padding:10px;background:#1e3a6b;color:#fff;border:none;border-radius:10px;font-size:13px;font-weight:600;cursor:pointer;font-family:inherit">
+    📝 이 팀에 피드백 작성하기</button>`;
+  document.getElementById('detailCard').appendChild(fbBtn);
   document.getElementById('detailCard').scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 
-function closeDetail(){selectedTeam=null;document.getElementById('detailCard').style.display='none';document.getElementById('personCard').style.display='none';renderTeamGrid();}
+function closeDetail(){
+  selectedTeam=null;
+  document.getElementById('detailCard').style.display='none';
+  document.getElementById('personCard').style.display='none';
+  renderTeamGrid();
+}
 
 function renderTrend(){
   if(trendChartRef) trendChartRef.destroy();
@@ -769,13 +699,11 @@ function renderTrend(){
 function renderAlerts(){
   const el=document.getElementById('alertList');el.innerHTML='';
   const alerts=[];
-  // 미제출
   Object.entries(TEAM_MAP).forEach(([code,name])=>{
     const team=allData.find(t=>t.code===code);
     if(!team||!team.weeks[currentWeek]) alerts.push({type:'warn',msg:`${name} — 이번 주 미제출`});
     else if(team.weeks[currentWeek].rate<50) alerts.push({type:'danger',msg:`${name} — 달성률 ${team.weeks[currentWeek].rate}% (주의 필요)`});
   });
-  // 2주 연속 미제출
   if(currentWeek>=2){
     Object.entries(TEAM_MAP).forEach(([code,name])=>{
       const team=allData.find(t=>t.code===code);
@@ -785,23 +713,16 @@ function renderAlerts(){
   }
   if(!alerts.length){el.innerHTML=`<div style="font-size:13px;color:#64748b;padding:8px 0">이번 주 주의사항이 없어요. 👍</div>`;return;}
   alerts.slice(0,10).forEach(a=>{
-    el.innerHTML+=`<div class="alert-row">
-      <div class="alert-dot" style="background:${a.type==='danger'?'#dc2626':'#f59e0b'}"></div>
-      <span>${a.msg}</span>
-    </div>`;
+    el.innerHTML+=`<div class="alert-row"><div class="alert-dot" style="background:${a.type==='danger'?'#dc2626':'#f59e0b'}"></div><span>${a.msg}</span></div>`;
   });
   if(alerts.length>10) el.innerHTML+=`<div style="font-size:12px;color:#94a3b8;padding:8px 0">외 ${alerts.length-10}건...</div>`;
 }
 
-function renderAll(){
-  buildWeekTabs();renderMetrics();renderTeamGrid();renderTrend();renderAlerts();
-}
+function renderAll(){buildWeekTabs();renderMetrics();renderTeamGrid();renderTrend();renderAlerts();}
 function render(){renderAll();}
 
-// 자동 새로고침 5분마다
-setInterval(loadData, 5*60*1000);
-
-// 시작
+// 자동 새로고침 5분
+setInterval(loadData,5*60*1000);
 buildWeekTabs();
 loadData();
 </script>
