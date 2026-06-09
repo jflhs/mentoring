@@ -474,11 +474,13 @@ async function loadAllMemberData(){
           }
           const sheetNewer=!localTs||_pad(sheetsTs)>=_pad(localTs);
           if(sheetNewer){
-            myWeeks[week-1].personalGoals=goals.map(g=>({
+            const localGoals=myWeeks[week-1].personalGoals||[];
+            myWeeks[week-1].personalGoals=goals.map((g,gi)=>({
               text:g.text||'',
-              checked:g.checked||false,
+              // 체크 상태: Sheets와 로컬 중 더 나은 값 유지 (한번 체크된 건 유지)
+              checked:g.checked||(localGoals[gi]&&localGoals[gi].checked)||false,
               files:(g.fileUrls||[]).map(u=>({url:u,name:g.fileName||'',isImg:true})),
-              checkTs:g.checkTs||'',
+              checkTs:g.checkTs||(localGoals[gi]&&localGoals[gi].checkTs)||'',
             }));
             myWeeks[week-1].saveTs=sheetsTs;
             saveLocal();
