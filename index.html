@@ -406,9 +406,15 @@ async function loadTeamShared(){
                 files:restoredFiles,
               };
             });
-            const _loadedWeek=tgWeek||currentWeek;
-            teamGoalsByWeek[_loadedWeek]=_restored;
-            if(_loadedWeek===currentWeek) teamShared.teamGoals=_restored;
+            // tgWeek가 있으면(신형) 해당 주차에 저장
+            // tgWeek=0(구형)이면 현재 주차에만 표시하고 저장 안 함
+            if(tgWeek){
+              teamGoalsByWeek[tgWeek]=_restored;
+              if(tgWeek===currentWeek) teamShared.teamGoals=_restored;
+            } else {
+              // 구형: 현재 주차에만 임시 표시 (저장 안 함)
+              teamShared.teamGoals=_restored;
+            }
           }
         }
         catch(e){
