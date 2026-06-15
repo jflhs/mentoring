@@ -505,6 +505,15 @@ async function loadAllMemberData(){
 
 // ── Sheets: 팀 설정 저장 ──
 async function saveTeamConfig(){
+  // 저장 전 화면 input에서 직접 읽어 teamConfig.members 재구성 (자동새로고침 덮어쓰기 방어)
+  const cards=document.querySelectorAll('#memberSetupGrid .member-setup-card');
+  if(cards.length>0){
+    teamConfig.members=Array.from(cards).map(card=>{
+      const nameInp=card.querySelector('.member-inp');
+      const roleSelect=card.querySelector('.role-select');
+      return {name:(nameInp?nameInp.value.trim():''),role:(roleSelect?roleSelect.value:'멘티')};
+    }).filter(m=>m.name);
+  }
   setSyncBadge('ing','팀 설정 저장 중...');
   const tgoals=teamShared.teamGoals;
   const payload={
