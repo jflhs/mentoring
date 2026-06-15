@@ -330,6 +330,7 @@ let currentWeek=1;
 let selectedTeam=null;
 let allData=[];
 let rawRows=[];
+let teamConfigMap={};  // {teamCode: [멤버배열]}
 let trendChartRef=null;
 let personTrendChartRef=null;
 
@@ -402,13 +403,18 @@ function processData(rows){
     }
   });
 
-  // 팀원 평균 달성률 계산
+  // 팀원 평균 달성률 계산 (미제출 팀원은 0%로 포함)
   Object.keys(teams).forEach(code=>{
     Object.keys(teams[code].weeks).forEach(week=>{
       const weekRates=memberRates[code]&&memberRates[code][week];
       if(weekRates){
-        const rates=Object.values(weekRates).map(m=>m.rate);
-        if(rates.length>0) teams[code].weeks[week].rate=Math.round(rates.reduce((a,b)=>a+b,0)/rates.length);
+        const submittedRates=Object.values(weekRates).map(m=>m.rate);
+        // 분모: Sheets에 기록된 팀원 수(memberCount) 기준, 없으면 실제 제출 인원
+        const memberCount=teams[code].weeks[week].memberCount||submittedRates.length;
+        const total=Math.max(memberCount,submittedRates.length);
+        // 미제출 인원은 0%로 채움
+        const allRates=[...submittedRates,...Array(total-submittedRates.length).fill(0)];
+        if(allRates.length>0) teams[code].weeks[week].rate=Math.round(allRates.reduce((a,b)=>a+b,0)/allRates.length);
       }
     });
   });
@@ -463,8 +469,22 @@ function getPersonData(teamCode,memberName){
 async function loadData(){
   document.getElementById('teamGridWrap').innerHTML=`<div class="loading-box"><div class="loading-spinner"></div><br>데이터 불러오는 중...</div>`;
   try{
-    const res=await fetch(SHEETS_URL+'?t='+Date.now());
-    const rows=await res.json();
+    // 주간 데이터 + 팀 설정 데이터 동시 fetch
+    const [res1, ...teamRes] = await Promise.all([
+      fetch(SHEETS_URL+'?t='+Date.now()),
+      ...Object.keys(TEAM_MAP).map(code=>
+        fetch(`${SHEETS_URL}?type=team&teamCode=${code}&t=${Date.now()}`)
+          .then(r=>r.json()).then(j=>{
+            if(j.result==='success'&&j.data&&j.data['팀원구성']){
+              try{
+                const members=JSON.parse(j.data['팀원구성']);
+                if(Array.isArray(members)&&members.length) teamConfigMap[code]=members;
+              }catch(e){}
+            }
+          }).catch(()=>{})
+      )
+    ]);
+    const rows=await res1.json();
     rawRows=Array.isArray(rows)?rows:[];
     allData=processData(rawRows);
     render();
@@ -621,7 +641,9 @@ function showDetail(team){
   document.getElementById('detailTitle').textContent=`${team.name} 상세 현황 (${currentWeek}주차)`;
   const membersEl=document.getElementById('detailMembers');
   membersEl.innerHTML='';
-  const memberNames=[...(team.members||new Set())];
+  // teamConfigMap(팀 설정)에 팀원 있으면 우선 사용, 없으면 제출자 목록
+  const configMembers=teamConfigMap[team.code];
+  const memberNames=configMembers?configMembers.map(m=>m.name):[...(team.members||new Set())];
   if(!memberNames.length){membersEl.innerHTML=`<div class="no-data-msg">팀원 정보 없음</div>`;}
   else memberNames.forEach((name,mi)=>{
     const col=COLORS[mi%COLORS.length];
