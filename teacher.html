@@ -552,7 +552,7 @@ function renderTeamGrid(){
     card.innerHTML=`<div class="tc-name">${team.name}</div>
       <div class="tc-rate" style="color:${col}">${rate!==null?rate+'%':'—'}</div>
       <div class="tc-bar"><div class="tc-fill" style="width:${rate||0}%;background:${col}"></div></div>
-      <div class="tc-meta">${team.members.size||'?'}명 참여 · 누적 ${cum!==null?cum+'%':'—'}</div>
+      <div class="tc-meta">${(teamConfigMap[team.code]?teamConfigMap[team.code].length:team.members.size)||'?'}명 참여 · 누적 ${cum!==null?cum+'%':'—'}</div>
       ${badgeHtml}
       ${submitted&&wd.saveTs?`<div class="ts-label">저장 ${wd.saveTs}</div>`:''}`;
     card.onclick=()=>showDetail(team);
@@ -643,7 +643,7 @@ function showDetail(team){
   membersEl.innerHTML='';
   // teamConfigMap(팀 설정)에 팀원 있으면 우선 사용, 없으면 제출자 목록
   const configMembers=teamConfigMap[team.code];
-  const memberNames=configMembers?configMembers.map(m=>m.name):[...(team.members||new Set())];
+  const memberNames=configMembers?configMembers.map(m=>m.name).filter(n=>n&&n.trim()):[...(team.members||new Set())].filter(n=>n&&n.trim());
   if(!memberNames.length){membersEl.innerHTML=`<div class="no-data-msg">팀원 정보 없음</div>`;}
   else memberNames.forEach((name,mi)=>{
     const col=COLORS[mi%COLORS.length];
