@@ -309,6 +309,7 @@ function isLocked(week){
 
 let currentWeek=calcCurrentWeek(), myTeamCode='', myName='', myMemberIdx=-1;
 let isEditingTeamGoal=false; // 팀 목표 입력 중 여부
+let isEditingSetup=false; // 팀 설정 탭 열려있는 중
 
 // ── 상태 ──
 const teamConfig={members:[]};
@@ -376,8 +377,8 @@ async function loadTeamShared(){
     const json=await res.json();
     if(json.result==='success'&&json.data){
       const d=json.data;
-      // 팀원 구성
-      try{const m=JSON.parse(d['팀원구성']||'[]');if(m.length){teamConfig.members=m;}}catch(e){}
+      // 팀원 구성 (팀 설정 탭 편집 중이면 덮어쓰지 않음)
+      if(!isEditingSetup){try{const m=JSON.parse(d['팀원구성']||'[]');if(m.length){teamConfig.members=m;}}catch(e){}}
       // 팀 목표 (입력 중이 아닐 때만 덮어씀)
       if(!isEditingTeamGoal){
         try{
@@ -527,6 +528,9 @@ async function saveTeamConfig(){
     setSyncBadge('ok','팀 설정 저장됨');
   }catch(e){setSyncBadge('err','저장 실패');}
   renderSetup();
+  // 저장 직후 loadTeamShared 덮어쓰기 방지: 3초간 isEditingSetup 유지
+  isEditingSetup=true;
+  setTimeout(()=>{if(document.getElementById('setupPanel').style.display==='none') isEditingSetup=false;},3000);
 }
 
 // ── Sheets: 주간 데이터 저장 ──
@@ -669,13 +673,15 @@ function showDash(){
   // 30초마다 팀 데이터 자동 새로고침
   // 팀원 데이터: 30초마다 새로고침
   setInterval(async()=>{
-    if(!isEditingTeamGoal){
+    if(!isEditingTeamGoal&&!isEditingSetup){
       await loadTeamShared();
       renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     }
-    await loadAllMemberData();
-    renderMembers();
-    renderCumulative();
+    if(!isEditingSetup){
+      await loadAllMemberData();
+      renderMembers();
+      renderCumulative();
+    }
   },30000);
   // 공지/피드백: 60초마다 새로고침
   setInterval(async()=>{
@@ -691,6 +697,7 @@ function switchTab(tab,btn){
   document.querySelectorAll('.stab').forEach(b=>b.classList.remove('on'));btn.classList.add('on');
   document.getElementById('dashPanel').style.display=tab==='dash'?'block':'none';
   document.getElementById('setupPanel').style.display=tab==='setup'?'block':'none';
+  isEditingSetup=(tab==='setup');
   if(tab==='setup') renderSetup();
 }
 
@@ -1219,11 +1226,11 @@ function render(){
 // 페이지가 다시 활성화될 때 자동 새로고침 (다른 탭 갔다가 돌아올 때)
 document.addEventListener('visibilitychange', async()=>{
   if(document.visibilityState==='visible' && myTeamCode){
-    if(!isEditingTeamGoal){
+    if(!isEditingTeamGoal&&!isEditingSetup){
       await loadTeamShared();
       renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     }
-    await loadAllMemberData();
+    if(!isEditingSetup) await loadAllMemberData();
     await loadFeedback();
     await loadNotice();
     renderMembers();
