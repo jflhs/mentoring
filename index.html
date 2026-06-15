@@ -528,15 +528,16 @@ async function saveTeamConfig(){
 async function sendWeeklyToSheets(){
   const w=wd();
   const goals=w.personalGoals.filter(g=>g.text.trim());
-  // 달성률: 체크됐거나 증빙자료 첨부된 목표 수 / 전체 목표 수
-  const totalGoals=wd().personalGoals.length||4;
-  const checkedGoals=wd().personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
+  // 달성률: 체크됐거나 증빙자료 첨부된 목표 수 / max(텍스트 있는 목표 수, 4)
+  const filledGoals=wd().personalGoals.filter(g=>g.text&&g.text.trim()).length;
+  const totalGoals=Math.max(filledGoals,4);
+  const checkedGoals=wd().personalGoals.filter(g=>(g.text&&g.text.trim())&&(g.checked||(g.files&&g.files.length>0))).length;
   const myRate=Math.round(checkedGoals/totalGoals*100);
   // 누적달성률: 저장된 주차들의 달성률 평균 (로컬 기준)
   const allRates=myWeeks.slice(0,currentWeek).map((w,i)=>{
-    const goals=w.personalGoals;
-    const total=goals.length||4;
-    const checked=goals.filter(g=>g.checked).length;
+    const filledG=w.personalGoals.filter(g=>g.text&&g.text.trim()).length;
+    const total=Math.max(filledG,4);
+    const checked=w.personalGoals.filter(g=>(g.text&&g.text.trim())&&g.checked).length;
     return total>0?Math.round(checked/total*100):0;
   });
   const filledRates=allRates.filter((r,i)=>myWeeks[i].saveTs); // 저장된 주차만
@@ -600,10 +601,12 @@ async function sendWeeklyToSheets(){
 function getMemberRate(memberName,week){
   if(memberName===myName){
     const w=myWeeks[week-1];
-    const total=w.personalGoals.length; // 전체 목표 수 (빈칸 포함)
+    // 분모: 텍스트가 있는 목표 수 기준, 최소 4
+    const filled=w.personalGoals.filter(g=>g.text&&g.text.trim()).length;
+    const total=Math.max(filled,4);
     if(!total) return null;
-    // 체크됐거나 증빙자료 첨부된 목표 카운팅
-    const done=w.personalGoals.filter(g=>g.checked||(g.files&&g.files.length>0)).length;
+    // 체크됐거나 증빙자료 첨부된 목표 중 텍스트가 있는 것만 카운팅
+    const done=w.personalGoals.filter(g=>(g.text&&g.text.trim())&&(g.checked||(g.files&&g.files.length>0))).length;
     return Math.round(done/total*100);
   }
   const d=allMemberData[memberName]&&allMemberData[memberName][week];
