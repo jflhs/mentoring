@@ -413,7 +413,8 @@ function processData(rows){
     });
   });
 
-  return Object.values(teams).sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  const _n=name=>{const m=name.match(/(\d+)/);return m?parseInt(m[1]):9999;};
+  return Object.values(teams).sort((a,b)=>_n(a.name)-_n(b.name));
 }
 
 function getWeekRate(team,week){return team.weeks[week]?team.weeks[week].rate:null;}
@@ -511,8 +512,9 @@ function renderTeamGrid(){
   if(filter==='ok') teams=teams.filter(t=>t.weeks[currentWeek]&&t.weeks[currentWeek].rate>=80);
   else if(filter==='warn') teams=teams.filter(t=>!t.weeks[currentWeek]||t.weeks[currentWeek].rate<50);
   else if(filter==='no') teams=teams.filter(t=>!t.weeks[currentWeek]);
+  const teamNum=name=>{const m=name.match(/(\d+)/);return m?parseInt(m[1]):9999;};
   if(sort==='rate') teams.sort((a,b)=>(getWeekRate(b,currentWeek)||0)-(getWeekRate(a,currentWeek)||0));
-  else if(sort==='name') teams.sort((a,b)=>a.name.localeCompare(b.name,'ko'));
+  else if(sort==='name') teams.sort((a,b)=>teamNum(a.name)-teamNum(b.name));
   else if(sort==='warn') teams.sort((a,b)=>(getWeekRate(a,currentWeek)||0)-(getWeekRate(b,currentWeek)||0));
   const wrap=document.getElementById('teamGridWrap');
   if(!teams.length){wrap.innerHTML=`<div class="no-data-msg">조건에 맞는 모둠이 없어요.</div>`;return;}
