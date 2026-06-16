@@ -542,6 +542,9 @@ async function saveTeamConfig(){
   setTimeout(()=>{if(document.getElementById('setupPanel').style.display==='none') isEditingSetup=false;},3000);
 }
 
+// ── Drive URL 체크 헬퍼 ──
+function isDriveUrl(u){return u&&(u.includes('drive.google.com')||u.includes('drive.usercontent.google.com'));}
+
 // ── Sheets: 주간 데이터 저장 ──
 async function sendWeeklyToSheets(){
   const w=wd();
@@ -581,7 +584,7 @@ async function sendWeeklyToSheets(){
     payload[`목표${i+1}체크`]=String(g.checked||false);
     payload[`목표${i+1}시각`]=g.checkTs||'';
     // Drive URL이 있으면 전송 (없으면 빈값)
-    const driveFiles=(g.files||[]).filter(f=>f.url&&f.url.includes('drive.google.com'));
+    const driveFiles=(g.files||[]).filter(f=>isDriveUrl(f.url));
     // 여러 파일 URL을 JSON 배열로 하나의 컬럼에 저장 (컬럼 추가 불필요)
     const urlArr=driveFiles.map(f=>f.url);
     payload[`목표${i+1}파일URL`]=urlArr.length>1?JSON.stringify(urlArr):(urlArr[0]||'');
@@ -772,8 +775,8 @@ function renderMembers(){
           memberGoalsHtml+=`<div style="display:flex;align-items:flex-start;gap:5px;padding:3px 0;border-bottom:0.5px solid #f1f5f9;font-size:11px">
             <span style="color:${g.checked?'#059669':'#cbd5e1'};flex-shrink:0;margin-top:1px">${g.checked?'✅':'○'}</span>
             <span style="color:${g.checked?'#1e293b':'#64748b'};line-height:1.4">${g.text}</span>
-            ${g.files&&g.files.find(f=>f.url&&f.url.includes('drive.google.com'))?
-              `<a href="${g.files.find(f=>f.url&&f.url.includes('drive.google.com')).url}" target="_blank"
+            ${g.files&&g.files.find(f=>isDriveUrl(f.url))?
+              `<a href="${g.files.find(f=>isDriveUrl(f.url)).url}" target="_blank"
                 style="flex-shrink:0;font-size:10px;color:#2563eb;text-decoration:none">📎</a>`:''}
           </div>`;
         });
@@ -905,7 +908,7 @@ function renderGoalList(goals,listId,isTeam){
           const img=document.createElement('img');
           img.className='thumb-img';img.src=f.url;img.alt=f.name;
           // 클릭하면 크게 보기
-          if(f.url.includes('drive.google.com')){
+          if(isDriveUrl(f.url)){
             img.style.cursor='pointer';
             img.onclick=()=>window.open(f.url,'_blank');
             img.title='클릭하면 크게 볼 수 있어요';
