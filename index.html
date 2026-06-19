@@ -487,13 +487,23 @@ async function loadAllMemberData(){
           const sheetNewer=!localTs||_toNum(sheetsTs)>=_toNum(localTs);
           if(sheetNewer){
             const localGoals=myWeeks[week-1].personalGoals||[];
-            myWeeks[week-1].personalGoals=goals.map((g,gi)=>({
-              text:g.text||'',
-              // 체크 상태: Sheets와 로컬 중 더 나은 값 유지 (한번 체크된 건 유지)
-              checked:g.checked||(localGoals[gi]&&localGoals[gi].checked)||false,
-              files:(g.fileUrls||[]).map(u=>({url:u,name:g.fileName||'',isImg:true})),
-              checkTs:g.checkTs||(localGoals[gi]&&localGoals[gi].checkTs)||'',
-            }));
+            myWeeks[week-1].personalGoals=goals.map((g,gi)=>{
+              const localGoal=localGoals[gi]||{};
+              // Sheets 파일 목록
+              const sheetFiles=(g.fileUrls||[]).map(u=>({url:u,name:g.fileName||'',isImg:true}));
+              // 로컬 파일 중 Sheets에 없는 것 (Drive URL 있는 것만) 유지
+              const localOnlyFiles=(localGoal.files||[]).filter(f=>
+                isDriveUrl(f.url) && !(g.fileUrls||[]).includes(f.url)
+              );
+              return {
+                text:g.text||'',
+                // 체크 상태: Sheets와 로컬 중 더 나은 값 유지
+                checked:g.checked||localGoal.checked||false,
+                // 파일: Sheets 파일 + 로컬에만 있는 Drive 파일 합치기
+                files:[...sheetFiles,...localOnlyFiles],
+                checkTs:g.checkTs||localGoal.checkTs||'',
+              };
+            });
             myWeeks[week-1].saveTs=sheetsTs;
             saveLocal();
           }
@@ -967,7 +977,8 @@ function initFileInputs(){
               const img=new Image();
               const url=URL.createObjectURL(file);
               img.onload=()=>{
-                const MAX=1200;
+                // 모바일 네트워크 대응: 작게 압축 (800px, 품질 0.65)
+                const MAX=800;
                 let w=img.width,h=img.height;
                 if(w>MAX||h>MAX){
                   if(w>h){h=Math.round(h*MAX/w);w=MAX;}
@@ -977,7 +988,7 @@ function initFileInputs(){
                 canvas.width=w;canvas.height=h;
                 canvas.getContext('2d').drawImage(img,0,0,w,h);
                 URL.revokeObjectURL(url);
-                resolve(canvas.toDataURL('image/jpeg',0.75));
+                resolve(canvas.toDataURL('image/jpeg',0.65));
               };
               img.onerror=reject;
               img.src=url;
@@ -1007,6 +1018,9 @@ function initFileInputs(){
               if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
               if(!isTeam) saveLocal();
               renderGoalList(arr,listId,isTeam);
+              // Drive 실패해도 체크 상태는 Sheets에 저장
+              setSyncBadge('ing','달성률 저장 중...');
+              await sendWeeklyToSheets();
               setSyncBadge('ok','동기화됨');
             }
           }catch(e){
@@ -1016,10 +1030,15 @@ function initFileInputs(){
               reader.readAsDataURL(file);
             });
             arr[idx].files.push({name:file.name,url:base64,isImg:true});
+            arr[idx].checked=true;
+            if(!arr[idx].checkTs) arr[idx].checkTs=nowStr();
             if(!isTeam) saveLocal();
             renderGoalList(arr,listId,isTeam);
-            setSyncBadge('err','업로드 실패 - 로컬 저장');
-            setTimeout(()=>setSyncBadge('ok','동기화됨'),2000);
+            // 업로드 실패해도 체크 상태는 Sheets에 저장
+            setSyncBadge('ing','달성률 저장 중...');
+            await sendWeeklyToSheets();
+            setSyncBadge('err','사진 로컬 저장됨 (재업로드 필요)');
+            setTimeout(()=>setSyncBadge('ok','동기화됨'),3000);
           }
         } else {
           arr[idx].files.push({name:file.name,url:'',isImg:false});
