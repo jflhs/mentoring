@@ -309,6 +309,7 @@ function isLocked(week){
 
 let currentWeek=calcCurrentWeek(), myTeamCode='', myName='', myMemberIdx=-1;
 let isEditingTeamGoal=false; // 팀 목표 입력 중 여부
+let isUploading=false; // 사진 업로드 중 여부
 let isEditingSetup=false; // 팀 설정 탭 열려있는 중
 
 // ── 상태 ──
@@ -466,17 +467,13 @@ async function loadAllMemberData(){
           subject3Diff:r['과목3향상']||'',
         };
         allMemberData[name][week]=d;
-        // 기기 변경 시 복원: 내 데이터를 myWeeks에 반영
-        if(name===myName && goals.length>0){
-          // Sheets 저장시각 vs 로컬 저장시각 비교 → 더 최신인 걸 사용
+        // 내 데이터: 업로드 중이 아닐 때만 Sheets로 동기화
+        if(name===myName && goals.length>0 && !isUploading){
           const sheetsTs=d.saveTs||'';
           const localTs=myWeeks[week-1].saveTs||'';
-          // ISO 형식(2026-06-14T23:03:00.000Z)과 M/D HH:MM 형식 모두 처리
           function _toNum(ts){
             if(!ts) return 0;
-            // ISO 형식이면 Date로 파싱
             if(ts.includes('T')||ts.includes('-')) return new Date(ts).getTime()||0;
-            // M/D HH:MM 형식: 올해 기준으로 변환
             try{
               const [md,hm]=ts.trim().split(' ');
               const [mo,da]=md.split('/');
@@ -484,22 +481,20 @@ async function loadAllMemberData(){
               return new Date(2026,parseInt(mo)-1,parseInt(da),parseInt(hh),parseInt(mm)).getTime();
             }catch(e){return 0;}
           }
-          const sheetNewer=!localTs||_toNum(sheetsTs)>=_toNum(localTs);
+          // Sheets가 더 최신이거나 로컬에 데이터 없을 때만 동기화
+          const sheetNewer=!localTs||_toNum(sheetsTs)>_toNum(localTs);
           if(sheetNewer){
-            const localGoals=myWeeks[week-1].personalGoals||[];
-            myWeeks[week-1].personalGoals=goals.map((g,gi)=>{
-              const localGoal=localGoals[gi]||{};
-              // Sheets 파일 목록
+            myWeeks[week-1].personalGoals=goals.map((g)=>{
+              // 텍스트 기준으로 로컬 목표와 매칭
+              const localGoal=(myWeeks[week-1].personalGoals||[]).find(l=>l.text&&l.text.trim()===g.text.trim())||{};
               const sheetFiles=(g.fileUrls||[]).map(u=>({url:u,name:g.fileName||'',isImg:true}));
-              // 로컬 파일 중 Sheets에 없는 것 (Drive URL 있는 것만) 유지
+              // 로컬에만 있는 Drive 파일 보존 (아직 Sheets에 반영 안 된 것)
               const localOnlyFiles=(localGoal.files||[]).filter(f=>
-                isDriveUrl(f.url) && !(g.fileUrls||[]).includes(f.url)
+                isDriveUrl(f.url)&&!(g.fileUrls||[]).includes(f.url)
               );
               return {
                 text:g.text||'',
-                // 체크 상태: Sheets와 로컬 중 더 나은 값 유지
                 checked:g.checked||localGoal.checked||false,
-                // 파일: Sheets 파일 + 로컬에만 있는 Drive 파일 합치기
                 files:[...sheetFiles,...localOnlyFiles],
                 checkTs:g.checkTs||localGoal.checkTs||'',
               };
@@ -971,6 +966,7 @@ function initFileInputs(){
       for(const file of files){
         const isImg=file.type.startsWith('image/');
         if(isImg){
+          isUploading=true;
           setSyncBadge('ing','사진 업로드 중...');
           try{
             const base64=await new Promise((resolve,reject)=>{
@@ -1011,6 +1007,7 @@ function initFileInputs(){
               renderGoalList(arr,listId,isTeam);
               setSyncBadge('ing','달성률 저장 중...');
               await sendWeeklyToSheets();
+              isUploading=false;
               setSyncBadge('ok','사진 업로드 완료');
             } else {
               arr[idx].files.push({name:file.name,url:base64,isImg:true});
@@ -1037,6 +1034,7 @@ function initFileInputs(){
             // 업로드 실패해도 체크 상태는 Sheets에 저장
             setSyncBadge('ing','달성률 저장 중...');
             await sendWeeklyToSheets();
+            isUploading=false;
             setSyncBadge('err','사진 로컬 저장됨 (재업로드 필요)');
             setTimeout(()=>setSyncBadge('ok','동기화됨'),3000);
           }
