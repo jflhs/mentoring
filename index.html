@@ -911,13 +911,26 @@ function renderGoalList(goals,listId,isTeam){
         wrapper.style.cssText='position:relative;display:inline-block';
         if(f.isImg&&f.url){
           const img=document.createElement('img');
-          img.className='thumb-img';img.src=f.url;img.alt=f.name;
-          // 클릭하면 크게 보기
+          img.className='thumb-img';img.alt=f.name;
           if(isDriveUrl(f.url)){
+            // Drive 이미지: 썸네일 URL로 변환해서 표시
+            const fileId=f.url.match(/[?&]id=([^&]+)/)?.[1]||f.url.match(/\/d\/([^\/]+)/)?.[1];
+            img.src=fileId?`https://drive.google.com/thumbnail?id=${fileId}&sz=w200`:f.url;
             img.style.cursor='pointer';
             img.onclick=()=>window.open(f.url,'_blank');
             img.title='클릭하면 크게 볼 수 있어요';
+          } else {
+            img.src=f.url;
           }
+          img.onerror=()=>{
+            // 이미지 로딩 실패 시 링크 버튼으로 대체
+            const chip=document.createElement('div');
+            chip.className='file-chip';
+            chip.style.cursor='pointer';
+            chip.textContent='🖼️ '+f.name;
+            chip.onclick=()=>window.open(f.url,'_blank');
+            wrapper.replaceChild(chip,img);
+          };
           wrapper.appendChild(img);
         } else {
           const chip=document.createElement('div');chip.className='file-chip';chip.textContent='📄 '+f.name;wrapper.appendChild(chip);
