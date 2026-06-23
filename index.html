@@ -672,7 +672,8 @@ async function tryLogin(){
 function doLogout(){
   // 팀코드, 이름 + 주간 데이터 캐시 모두 삭제
   localStorage.removeItem('tc'); localStorage.removeItem('tn');
-  localStorage.removeItem('weeks_'+myTeamCode+'_'+myName);
+  localStorage.removeItem(localKey('weeks')); // TEAM코드_이름_weeks 형식
+  localStorage.removeItem(localKey('lastFeedbackTs'));
   myTeamCode=''; myName=''; myMemberIdx=-1;
   myWeeks=Array.from({length:5},()=>({personalGoals:[],saveTs:'',teamGoals:[]}));
   document.getElementById('loginWrap').style.display='flex';
