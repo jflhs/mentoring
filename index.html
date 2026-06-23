@@ -392,7 +392,10 @@ async function loadTeamShared(){
           }catch(e){}
           if(tgWeek && tgWeek!==currentWeek){
             if(tgList.length) teamGoalsByWeek[tgWeek]=tgList;
-            teamShared.teamGoals=teamGoalsByWeek[currentWeek]||[];
+            // 현재 주차 팀 목표가 없으면 기존 teamShared.teamGoals 유지 (빈 배열로 덮어쓰지 않음)
+            if(teamGoalsByWeek[currentWeek]&&teamGoalsByWeek[currentWeek].length){
+              teamShared.teamGoals=teamGoalsByWeek[currentWeek];
+            }
           } else if(tgList.length){
             // files 배열 복원 - 기존 files와 병합 (Drive URL 보존)
             const _restored=tgList.map((g,gi)=>{
@@ -430,6 +433,42 @@ async function loadTeamShared(){
     }
     setSyncBadge('ok','동기화됨');
   }catch(e){setSyncBadge('err','연결 실패');}
+}
+
+// ── 로그인 시 내 데이터 Sheets에서 복원 (로컬 없는 주차만) ──
+async function restoreMyDataFromSheets(){
+  try{
+    const res=await fetch(`${SHEETS_URL}?type=weekly&teamCode=${myTeamCode}&t=${Date.now()}`);
+    const rows=await res.json();
+    if(!Array.isArray(rows)) return;
+    // 내 데이터만 필터
+    const myRows=rows.filter(r=>r['팀코드']===myTeamCode&&r['팀원이름']===myName);
+    myRows.forEach(r=>{
+      const week=parseInt(r['주차'])||1;
+      // 로컬에 이미 데이터 있으면 복원 안 함
+      const hasLocal=myWeeks[week-1].saveTs||
+        (myWeeks[week-1].personalGoals&&myWeeks[week-1].personalGoals.some(g=>g.text&&g.text.trim()));
+      if(hasLocal) return;
+      const goals=[];
+      for(let i=1;i<=8;i++){
+        if(!r[`목표${i}`]) continue;
+        const v=r[`목표${i}파일URL`]||'';
+        let fileUrls=[];
+        try{const p=JSON.parse(v);fileUrls=Array.isArray(p)?p:[v].filter(Boolean);}catch(e){if(v)fileUrls=[v];}
+        goals.push({
+          text:r[`목표${i}`],
+          checked:String(r[`목표${i}체크`]).toLowerCase()==='true',
+          files:fileUrls.map(u=>({url:u,name:r[`목표${i}파일명`]||'',isImg:true})),
+          checkTs:r[`목표${i}시각`]||'',
+        });
+      }
+      if(goals.length>0){
+        myWeeks[week-1].personalGoals=goals;
+        myWeeks[week-1].saveTs=r['저장시각']||'';
+        saveLocal();
+      }
+    });
+  }catch(e){console.error('restore error',e);}
 }
 
 // ── Sheets: 팀원 전체 주간 데이터 불러오기 ──
@@ -664,7 +703,10 @@ async function tryLogin(){
   // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
   await loadTeamShared();
   await loadAllMemberData();
+  // 로그인 시 1회: 로컬에 없는 주차 Sheets에서 복원
+  await restoreMyDataFromSheets();
   renderMembers();
+  renderGoalList(wd().personalGoals,'personalGoalList',false);
   renderGoalList(teamShared.teamGoals,'teamGoalList',true);
   renderCumulative();
 }
@@ -1294,7 +1336,9 @@ document.addEventListener('visibilitychange', async()=>{
     // 백그라운드에서 팀 데이터 불러오기 (개인 목표 덮어쓰지 않음)
     await loadTeamShared();
     await loadAllMemberData();
+    await restoreMyDataFromSheets();
     renderMembers();
+    renderGoalList(wd().personalGoals,'personalGoalList',false);
     renderGoalList(teamShared.teamGoals,'teamGoalList',true);
     renderCumulative();
   }
