@@ -79,12 +79,9 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
       </div>
       <button onclick="closeFeedbackModal()" style="font-size:20px;background:none;border:none;cursor:pointer;color:#94a3b8">✕</button>
     </div>
-    <!-- 이전 피드백 -->
     <div id="prevFeedbacks" style="margin-bottom:12px"></div>
-    <!-- 교사 이름 -->
     <input id="teacherNameInp" placeholder="선생님 이름 (예: 홍길동 선생님)" maxlength="20"
       style="width:100%;font-size:13px;padding:9px 12px;border:1px solid #e2e8f0;border-radius:8px;outline:none;font-family:inherit;margin-bottom:8px;color:#1e293b">
-    <!-- 피드백 내용 -->
     <textarea id="feedbackTextarea" placeholder="팀에 전달할 피드백을 작성해주세요...&#10;&#10;예) 이번 주 달성률이 낮아요. 목표를 좀 더 구체적으로 설정해보세요!" rows="6"
       style="width:100%;font-size:13px;padding:10px 12px;border:1px solid #e2e8f0;border-radius:10px;outline:none;resize:none;font-family:inherit;color:#1e293b;line-height:1.6"></textarea>
     <div style="display:flex;gap:8px;margin-top:10px">
@@ -226,6 +223,16 @@ body{font-family:'Apple SD Gothic Neo','Noto Sans KR',sans-serif;background:#f1f
 </div>
 
 <script>
+const SHEETS_URL='https://script.google.com/macros/s/AKfycbzgSAmXwmYMclS-IFTXaSDEWCohgO_pBru42RZtfQp2Rr_9cnheQ_rkAAA6F-D9wrK3/exec';
+const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
+const TEAM_MAP={
+  'TEAM01':'1모둠','TEAM02':'2모둠','TEAM03':'3모둠','TEAM04':'4모둠',
+  'TEAM05':'5모둠','TEAM06':'6모둠','TEAM07':'7모둠','TEAM08':'8모둠',
+  'TEAM09':'9모둠','TEAM10':'10모둠','TEAM11':'11모둠','TEAM12':'12모둠',
+  'TEAM13':'13모둠','TEAM14':'14모둠','TEAM15':'15모둠','TEAM16':'16모둠',
+  'TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
+};
+
 // ── 공지사항 ──
 async function openNoticeModal(){
   try{
@@ -316,23 +323,34 @@ async function submitFeedback(){
 }
 
 const gradeMode=true;
-const SHEETS_URL='https://script.google.com/macros/s/AKfycbzgSAmXwmYMclS-IFTXaSDEWCohgO_pBru42RZtfQp2Rr_9cnheQ_rkAAA6F-D9wrK3/exec';
-const COLORS=['#2563eb','#059669','#ea580c','#7c3aed','#b45309','#be185d','#0891b2','#65a30d'];
-const TEAM_MAP={
-  'TEAM01':'1모둠','TEAM02':'2모둠','TEAM03':'3모둠','TEAM04':'4모둠',
-  'TEAM05':'5모둠','TEAM06':'6모둠','TEAM07':'7모둠','TEAM08':'8모둠',
-  'TEAM09':'9모둠','TEAM10':'10모둠','TEAM11':'11모둠','TEAM12':'12모둠',
-  'TEAM13':'13모둠','TEAM14':'14모둠','TEAM15':'15모둠','TEAM16':'16모둠',
-  'TEAM17':'17모둠','TEAM18':'18모둠','TEAM19':'19모둠','TEAM20':'20모둠',
-};
 
 let currentWeek=1;
 let selectedTeam=null;
 let allData=[];
 let rawRows=[];
-let teamConfigMap={};  // {teamCode: [멤버배열]}
+let teamConfigMap={};
 let trendChartRef=null;
 let personTrendChartRef=null;
+
+// ── 목표 텍스트가 실질적으로 채워져 있는지 확인 (공백/제로폭문자 방어) ──
+function hasText(t){
+  if(!t) return false;
+  return String(t).replace(/[\s\u00A0\u200B\uFEFF]/g,'').length>0;
+}
+
+// ── 목표 배열 기준 달성률 계산 (학생 대시보드와 동일 로직) ──
+function calcRateFromGoals(goals){
+  if(!goals||!goals.length) return null;
+  const filled=goals.filter(g=>hasText(g.text)).length;
+  const total=Math.max(filled,4);
+  if(!total) return null;
+  const done=goals.filter(g=>{
+    if(!hasText(g.text)) return false;
+    const hasFile=(g.fileUrls&&g.fileUrls.length>0)||!!g.fileUrl;
+    return g.checked||hasFile;
+  }).length;
+  return Math.round(done/total*100);
+}
 
 // 저장시각 "6/7 19:50" → "06/07 19:50" 패딩해서 정확한 비교
 function padTs(ts){
@@ -347,6 +365,20 @@ function padTs(ts){
   }catch(e){return String(ts);}
 }
 
+function extractGoalsFromRow(r){
+  const goals=[];
+  for(let i=1;i<=8;i++){
+    if(hasText(r[`목표${i}`])) goals.push({
+      text:r[`목표${i}`],
+      checked:r[`목표${i}체크`]==='true'||r[`목표${i}체크`]===true,
+      checkTs:r[`목표${i}시각`]||'',
+      fileUrls:(()=>{const v=r[`목표${i}파일URL`]||'';try{const p=JSON.parse(v);return Array.isArray(p)?p:[v].filter(Boolean);}catch(e){return v?[v]:[]}})(),
+      fileName:r[`목표${i}파일명`]||'',
+    });
+  }
+  return goals;
+}
+
 // Sheets 데이터 → 팀별 집계
 function processData(rows){
   const teams={};
@@ -357,18 +389,20 @@ function processData(rows){
     if(!code) return;
     const name=row['팀명']||TEAM_MAP[code]||code;
     const week=parseInt(row['주차'])||1;
-    const rate=parseFloat(row['달성률'])||0;
     const saveTs=row['저장시각']||'';
     const memberName=row['팀원이름']||'';
 
     if(!teams[code]) teams[code]={code,name,weeks:{},members:new Set(),subjects:{},subjectDiffs:{},achieveReward:''};
     teams[code].members.add(memberName);
 
-    // 팀원별 달성률: 저장시각 기준 최신만 유지
+    // 팀원별 달성률: 저장시각 기준 최신 행을 찾고, 목표 데이터로 직접 재계산
     if(!memberRates[code]) memberRates[code]={};
     if(!memberRates[code][week]) memberRates[code][week]={};
     const existTs=memberRates[code][week][memberName]?padTs(memberRates[code][week][memberName].saveTs):'';
     if(!memberRates[code][week][memberName]||padTs(saveTs)>=existTs){
+      const goals=extractGoalsFromRow(row);
+      const recalcRate=calcRateFromGoals(goals);
+      const rate=recalcRate!==null?recalcRate:(parseFloat(row['달성률'])||0);
       memberRates[code][week][memberName]={rate,saveTs};
     }
 
@@ -409,10 +443,8 @@ function processData(rows){
       const weekRates=memberRates[code]&&memberRates[code][week];
       if(weekRates){
         const submittedRates=Object.values(weekRates).map(m=>m.rate);
-        // 분모: Sheets에 기록된 팀원 수(memberCount) 기준, 없으면 실제 제출 인원
         const memberCount=teams[code].weeks[week].memberCount||submittedRates.length;
         const total=Math.max(memberCount,submittedRates.length);
-        // 미제출 인원은 0%로 채움
         const allRates=[...submittedRates,...Array(total-submittedRates.length).fill(0)];
         if(allRates.length>0) teams[code].weeks[week].rate=Math.round(allRates.reduce((a,b)=>a+b,0)/allRates.length);
       }
@@ -429,7 +461,7 @@ function getCumRate(team){
   return rates.length?Math.round(rates.reduce((a,b)=>a+b,0)/rates.length):null;
 }
 
-// 개인 데이터: 저장시각 기준 주차별 최신 행만 사용
+// 개인 데이터: 저장시각 기준 주차별 최신 행만 사용, 달성률은 목표 데이터로 직접 재계산
 function getPersonData(teamCode,memberName){
   const result={};
   rawRows.filter(r=>r['팀코드']===teamCode&&r['팀원이름']===memberName).forEach(r=>{
@@ -437,23 +469,13 @@ function getPersonData(teamCode,memberName){
     const rTs=padTs(r['저장시각']||'');
     const curTs=result[week]?padTs(result[week].saveTs):'';
     if(!result[week]||rTs>=curTs){
+      const goals=extractGoalsFromRow(r);
+      const recalcRate=calcRateFromGoals(goals);
       result[week]={
-        rate:parseFloat(r['달성률'])||0,
+        rate:recalcRate!==null?recalcRate:(parseFloat(r['달성률'])||0),
         cumRate:parseFloat(r['누적달성률'])||0,
         saveTs:r['저장시각']||'',
-        goals:(()=>{
-          const gs=[];
-          for(let i=1;i<=8;i++){
-            if(r[`목표${i}`]) gs.push({
-              text:r[`목표${i}`]||'',
-              checked:r[`목표${i}체크`]==='true'||(r[`목표${i}체크`]===true),
-              checkTs:r[`목표${i}시각`]||'',
-              fileUrls:(()=>{const v=r[`목표${i}파일URL`]||'';try{const p=JSON.parse(v);return Array.isArray(p)?p:[v].filter(Boolean);}catch(e){return v?[v]:[]}})(),
-              fileName:r[`목표${i}파일명`]||'',
-            });
-          }
-          return gs;
-        })(),
+        goals,
         subject1Name:r['과목1명']||'',subject1Diff:r['과목1향상']||'',
         subject1Before:r['과목11차']||'',subject1After:r['과목12차']||'',
         subject2Name:r['과목2명']||'',subject2Diff:r['과목2향상']||'',
@@ -469,7 +491,6 @@ function getPersonData(teamCode,memberName){
 async function loadData(){
   document.getElementById('teamGridWrap').innerHTML=`<div class="loading-box"><div class="loading-spinner"></div><br>데이터 불러오는 중...</div>`;
   try{
-    // 주간 데이터 + 팀 설정 데이터 동시 fetch
     const [res1, ...teamRes] = await Promise.all([
       fetch(SHEETS_URL+'?t='+Date.now()),
       ...Object.keys(TEAM_MAP).map(code=>
@@ -641,7 +662,6 @@ function showDetail(team){
   document.getElementById('detailTitle').textContent=`${team.name} 상세 현황 (${currentWeek}주차)`;
   const membersEl=document.getElementById('detailMembers');
   membersEl.innerHTML='';
-  // teamConfigMap(팀 설정)에 팀원 있으면 우선 사용, 없으면 제출자 목록
   const configMembers=teamConfigMap[team.code];
   const memberNames=configMembers?configMembers.map(m=>m.name).filter(n=>n&&n.trim()):[...(team.members||new Set())].filter(n=>n&&n.trim());
   if(!memberNames.length){membersEl.innerHTML=`<div class="no-data-msg">팀원 정보 없음</div>`;}
@@ -686,7 +706,6 @@ function showDetail(team){
     const badge=!s.diff?`<span class="badge b-no">미입력</span>`:diff>=0.5?`<span class="badge b-ok">▲ ${diff.toFixed(1)}등급 향상</span>`:diff>0?`<span class="badge b-prog">▲ ${diff.toFixed(1)}등급</span>`:`<span class="badge b-warn">▼ ${Math.abs(diff).toFixed(1)}등급</span>`;
     subjEl.innerHTML+=`<div style="display:flex;align-items:center;gap:8px;padding:6px 0;border-bottom:1px solid #f1f5f9;font-size:13px"><span style="font-weight:600;min-width:48px">${s.name}</span>${badge}</div>`;
   });
-  // 피드백 버튼
   let fbBtn=document.getElementById('feedbackBtnWrap');
   if(fbBtn) fbBtn.remove();
   fbBtn=document.createElement('div');fbBtn.id='feedbackBtnWrap';
